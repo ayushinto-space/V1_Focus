@@ -372,9 +372,18 @@ function openRadarView() {
 
   // Trigger Leaflet viewport dimensions recalibration maps
   setTimeout(() => {
-    if (map) map.invalidateSize();
-  }, 50);
+    if (map) {
+      map.invalidateSize();
+    }
+  }, 150); // Increased timeout buffer slightly to accommodate mobile engine rendering cycles safely
 }
+
+// Global window resize listener to auto-recalculate map sizing
+window.addEventListener('resize', () => {
+  if (map && !radarView.classList.contains('hidden-view')) {
+    map.invalidateSize();
+  }
+});
 
 function openHomeView() {
   radarView.classList.add('hidden-view');
