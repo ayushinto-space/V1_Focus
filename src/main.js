@@ -322,70 +322,27 @@ volumeSlider.addEventListener('input', (e) => {
 
 // SNAPSHOT ENGINE
 sharePassBtn.addEventListener('click', async () => {
-  const flightNum = passFlightNum.innerText;
-  if (!flightNum || flightNum === '—') return;
+  const passElement = document.getElementById('boarding-pass');
 
-  const btnText = sharePassBtn.querySelector('span');
-  const originalText = btnText.innerText;
-  btnText.innerText = "Capturing...";
+  // Hide the close button before capture
+  const closeBtn = document.querySelector('.modal-close-trigger');
+  closeBtn.style.display = 'none';
 
-  // Target the boarding pass card element
-  const targetCard = document.getElementById('boarding-pass');
+  // Capture the element
+  const canvas = await html2canvas(passElement, {
+    backgroundColor: '#0f131a', // Match your dark theme
+    scale: 2, // High resolution for IG
+    logging: false
+  });
 
-  try {
-    // Generate the canvas layout from live CSS configurations
-    const canvas = await html2canvas(targetCard, {
-      backgroundColor: null, // Keeps corners transparent if needed
-      scale: 2,              // Doubles resolution for razor-sharp text on high-DPI screens
-      logging: false,
-      useCORS: true          // Prevents external asset image cross-origin breakages
-    });
+  // Reset the close button
+  closeBtn.style.display = 'block';
 
-    // Convert the canvas pixels into a standard PNG base64 stream data block
-    const imgDataUrl = canvas.toDataURL('image/png');
-
-    // Attempt to invoke native mobile file sharing tray if available
-    if (navigator.canShare && navigator.share) {
-      const response = await fetch(imgDataUrl);
-      const blob = await response.blob();
-      const file = new File([blob], `FocusFlight-${flightNum}.png`, { type: 'image/png' });
-
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `My FocusFlight Boarding Pass`,
-          text: `Locked into deep work for Flight ${flightNum}! ✈️`
-        });
-
-        btnText.innerText = originalText;
-        return; // Break sequence if native file share succeeded
-      }
-    }
-
-    // ALT: Automatic high-fidelity PNG direct download link trigger
-    const downloadLink = document.createElement('a');
-    downloadLink.href = imgDataUrl;
-    downloadLink.download = `FocusFlight-${flightNum}.png`;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-
-    // Reset indicator layout button text values
-    btnText.innerText = "Saved!";
-    sharePassBtn.style.background = "rgba(34, 197, 94, 0.15)";
-    sharePassBtn.style.color = "#4ade80";
-
-    setTimeout(() => {
-      btnText.innerText = originalText;
-      sharePassBtn.style.background = "rgba(56, 189, 248, 0.1)";
-      sharePassBtn.style.color = "#38bdf8";
-    }, 2000);
-
-  } catch (error) {
-    console.error("Snapshot capture sequence failed:", error);
-    alert("Unable to compile asset image voucher layout.");
-    btnText.innerText = originalText;
-  }
+  // Convert to image and download
+  const link = document.createElement('a');
+  link.download = 'focus-flight-pass.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 });
 
 initMap();
