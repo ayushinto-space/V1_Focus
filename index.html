@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>V1 Focus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div id="app">
+    <aside class="control-panel">
+      <header class="app-header">
+        <h1>✈️ V1 Focus</h1>
+        <p class="tagline">Destination equals duration.</p>
+      </header>
+
+      <section class="telemetry-box">
+        <h2>FLIGHT TELEMETRY</h2>
+        <div class="input-group">
+          <label for="flight-input">Live Flight</label>
+          <div class="field-row">
+            <input type="text" id="flight-input" placeholder="Flight NO. (6E123), POMO" autocomplete="off" />
+            <button id="search-btn" type="button">Track</button>
+          </div>
+          <span class="hint">TIP: <strong>TEST</strong> (1m), <strong>POMO</strong> (30m) or <strong>MARATHON</strong>
+            (9h)</span>
+        </div>
+
+        <div class="status-box">
+          <div id="status-dot" class="status-dot"></div>
+          <p id="flight-status">Awaiting flight initialization parameters...</p>
+        </div>
+      </section>
+
+      <section class="chronometer-section">
+        <div id="time-left">00:00:00</div>
+        <span class="lbl-sub">Remaining to Destination Wheels-Down</span>
+
+        <div class="action-row">
+          <button id="start-btn" class="btn-primary" disabled>Clear for Departure</button>
+          <button id="abort-btn" class="btn-danger hidden">Abort Mission</button>
+        </div>
+      </section>
+
+      <section class="environment-box">
+        <h3>CABIN ENVIRONMENT</h3>
+        <div class="volume-control">
+          <div class="vol-label-row">
+            <label for="volume">Cabin Noise</label>
+            <span id="volume-pct">0%</span>
+          </div>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="0" />
+        </div>
+        <audio id="cabin-noise" loop src="/src/assets/cruise.mp3"></audio>
+      </section>
+    </aside>
+
+    <main class="radar-viewport">
+      <div id="map"></div>
+      <div class="telemetry-overlay-badge">
+        <span class="badge-title">GROUND TRACK</span>
+        <span id="map-stat-track">0.00%</span>
+      </div>
+    </main>
+  </div>
+
+  <div id="boarding-pass-modal" class="modal-backdrop hidden">
+    <div id="boarding-pass" class="boarding-pass-card">
+
+      <div class="pass-header">
+        <div class="brand-group">
+          <span class="pass-logo">✈️</span>
+          <span class="pass-brand-name">V1 Focus Premium</span>
+        </div>
+        <div class="flight-badge">
+          <span class="badge-lbl">FLIGHT</span>
+          <span id="pass-flight-num" class="badge-val">—</span>
+        </div>
+      </div>
+
+      <div class="pass-body">
+        <div class="pass-meta-row">
+          <div class="meta-block">
+            <span class="meta-label">PASSENGER</span>
+            <span class="meta-value">Deep Worker</span>
+          </div>
+          <div class="meta-block alignment-right">
+            <span class="meta-label">CLASS / SEAT</span>
+            <span class="meta-value text-accent">Focus Elite / 1A</span>
+          </div>
+        </div>
+
+        <div class="pass-route-vector">
+          <div class="airport-node">
+            <span id="pass-dep" class="airport-code">—</span>
+            <span class="airport-sub">Origin Tower</span>
+          </div>
+
+          <div class="vector-line-wrapper">
+            <div class="plane-svg-icon">
+              <svg viewBox="0 0 24 24">
+                <path fill="currentColor"
+                  d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5Z" />
+              </svg>
+            </div>
+          </div>
+
+          <div class="airport-node alignment-right">
+            <span id="pass-arr" class="airport-code">—</span>
+            <span class="airport-sub">Destination Terminal</span>
+          </div>
+        </div>
+
+        <div class="pass-footer-metrics">
+          <div class="metric-item">
+            <span class="meta-label">ESTIMATED EN-ROUTE TIME</span>
+            <span id="pass-duration" class="metric-value">—</span>
+          </div>
+          <div class="metric-item alignment-right">
+            <span class="meta-label">GATE STATUS</span>
+            <div class="status-action-row" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+              <span class="badge-status-green" style="margin-top: 0;">BOARDING READY</span>
+              <button id="share-pass-btn" type="button" title="Download Flight Ticket Snapshot"
+                style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px;">
+                📸 <span>Save Image</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket-perforation">
+        <div class="notch left"></div>
+        <div class="notch right"></div>
+      </div>
+
+      <div class="pass-stub">
+        <div class="stub-meta">
+          <span class="meta-label">VALIDATION HASH CODE</span>
+          <span class="stub-security-text">SYSTEM SECURE VERIFIED</span>
+        </div>
+        <div class="barcode-matrix">
+          <div class="stripe"></div>
+          <div class="stripe bar-2"></div>
+          <div class="stripe bar-3"></div>
+          <div class="stripe"></div>
+          <div class="stripe bar-4"></div>
+          <div class="stripe bar-2"></div>
+          <div class="stripe bar-3"></div>
+        </div>
+      </div>
+
+      <button id="close-pass-btn" class="modal-close-trigger" type="button">×</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
