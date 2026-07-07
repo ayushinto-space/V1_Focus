@@ -11,13 +11,5 @@ Live Telemetry Radar: A fully interactive, responsive map interface that display
 Blackbox Analytics Dashboard: An automated, persistent logbook engine that tracks your career stats, including total flight hours, sector history and mission reliability percentages.
 Mission Accountability: An "Abort Mission" protocol that captures flight data even when a session is interrupted, providing an honest record of your focus stability.
 
-## 🛠 Technical Stack
-V1 Focus is built with a modern, high-performance web stack:
-Core Logic: JavaScript (ES6+) State Machine.
-Mapping: Leaflet.js with custom dark-themed CartoDB tiles.
-Persistence: Persistent Browser localStorage for cross-session flight data.
-Telemetry API: Integration with AirLabs global flight and airport data for real-world coordinate mapping.
-Styles: Mobile-first, glassmorphism-inspired UI designed for immersive low-light desktop and mobile environments.
-
 ## Getting Started
 To begin your first operation, simply navigate to the terminal, enter your flight identifier (e.g., POMO for a standard deep-work block) and engage the Start sequence to initiate the countdown. Your performance will be logged to your internal Blackbox upon mission completion.
