@@ -13,66 +13,115 @@
 </head>
 
 <body>
+  <nav class="global-navbar">
+    <div class="nav-brand">✈️ V1 Focus</div>
+    <div class="nav-actions">
+      <button id="nav-home-btn" class="nav-tab active-tab" type="button">Dashboard Home</button>
+      <button id="nav-radar-btn" class="nav-tab" type="button">Flight Control</button>
+    </div>
+  </nav>
+
   <div id="app">
-    <aside class="control-panel">
-      <header class="app-header">
-        <h1>✈️ V1 Focus</h1>
-        <p class="tagline">Destination equals duration.</p>
-      </header>
-
-      <section class="telemetry-box">
-        <h2>FLIGHT TELEMETRY</h2>
-        <div class="input-group">
-          <label for="flight-input">Live Flight</label>
-          <div class="field-row">
-            <input type="text" id="flight-input" placeholder="Flight NO. (6E123), POMO" autocomplete="off" />
-            <button id="search-btn" type="button">Track</button>
-          </div>
-          <span class="hint">TIP: <strong>TEST</strong> (1m), <strong>POMO</strong> (30m) or <strong>MARATHON</strong>
-            (9h)</span>
-        </div>
-
-        <div class="status-box">
-          <div id="status-dot" class="status-dot"></div>
-          <p id="flight-status">Awaiting flight initialization parameters...</p>
-        </div>
+    <main id="home-view" class="view-container">
+      <section class="hero-header-block">
+        <h1>Dive into an upgraded experience of Pomodoro with V1 Focus</h1>
+        <p>A focus timer that turns your next work session into a flight you are to board.</p>
       </section>
 
-      <section class="chronometer-section">
-        <div id="time-left">00:00:00</div>
-        <span class="lbl-sub">Remaining to Destination Wheels-Down</span>
-
-        <div class="action-row">
-          <button id="start-btn" class="btn-primary" disabled>Clear for Departure</button>
-          <button id="abort-btn" class="btn-danger hidden">Abort Mission</button>
+      <div class="benefits-grid">
+        <div class="benefit-card">
+          <div class="card-icon">🎯</div>
+          <h3>Takoff Commitment</h3>
+          <p>V1 is the critical speed where a pilot is to takeoff and cannot abort. Entering a
+            flight adds a restriction of being held till the journey ends, making it psychologically harder to quit.
+          </p>
         </div>
-      </section>
 
-      <section class="environment-box">
-        <h3>CABIN ENVIRONMENT</h3>
-        <div class="volume-control">
-          <div class="vol-label-row">
-            <label for="volume">Cabin Noise</label>
-            <span id="volume-pct">0%</span>
-          </div>
-          <input type="range" id="volume" min="0" max="1" step="0.05" value="0" />
+        <div class="benefit-card">
+          <div class="card-icon">🎧</div>
+          <h3>Cabin Acoustics Isolation</h3>
+          <p>Airplane cabin noise masks the sudden distractive noises. Unlike music the low information and predictive sound reduces cognitive load.
+          </p>
         </div>
-        <audio id="cabin-noise" loop src="/src/assets/cruise.mp3"></audio>
-      </section>
-    </aside>
 
-    <main class="radar-viewport">
-      <div id="map"></div>
-      <div class="telemetry-overlay-badge">
-        <span class="badge-title">GROUND TRACK</span>
-        <span id="map-stat-track">0.00%</span>
+        <div class="benefit-card">
+          <div class="card-icon">🗺️</div>
+          <h3>Gamified Spatial Progress</h3>
+          <p>Instead of a generic progress bar, watch your real-world coordinates drift.
+            Real-time updates track your work velocity mapped to real travel distances.</p>
+        </div>
+
+        <div class="benefit-card">
+          <div class="card-icon">📸</div>
+          <h3>Verified Boarding Pass</h3>
+          <p>Upon initialization, the system constructs a digital boarding pass of your study sesssion.
+            Export it instantly to let your friends and folks know that you have embarked into a silent journey.</p>
+        </div>
       </div>
+
+      <section class="quick-start-banner">
+        <h2>Ready for departure?</h2>
+        <p>Head to the control desk to map your transponder code or load a isolation sandbox environment.
+        </p>
+        <button id="cta-radar-btn" class="cta-primary-action" type="button">Access Flight Control →</button>
+      </section>
     </main>
+
+    <div id="radar-view" class="view-container hidden-view">
+      <aside class="control-panel">
+        <section class="telemetry-box">
+          <h2>FLIGHT TELEMETRY</h2>
+          <div class="input-group">
+            <label for="flight-input">Live Flight / Sandbox Code</label>
+            <div class="field-row">
+              <input type="text" id="flight-input" placeholder="e.g. EK342, POMO" autocomplete="off" />
+              <button id="search-btn" type="button">Track</button>
+            </div>
+            <span class="hint">Use <strong>TEST</strong> (1m), <strong>POMO</strong> (30m) or <strong>MARATHON</strong>
+              (9h) for testing.</span>
+          </div>
+
+          <div class="status-box">
+            <div id="status-dot" class="status-dot"></div>
+            <p id="flight-status">Awaiting flight initialization parameters...</p>
+          </div>
+        </section>
+
+        <section class="chronometer-section">
+          <div id="time-left">00:00:00</div>
+          <span class="lbl-sub">Remaining to Destination Wheels-Down</span>
+
+          <div class="action-row">
+            <button id="start-btn" class="btn-primary" disabled>Clear for Departure</button>
+            <button id="abort-btn" class="btn-danger hidden">Abort Mission</button>
+          </div>
+        </section>
+
+        <section class="environment-box">
+          <h3>CABIN ENVIRONMENT</h3>
+          <div class="volume-control">
+            <div class="vol-label-row">
+              <label for="volume">White Noise Engine</label>
+              <span id="volume-pct">0%</span>
+            </div>
+            <input type="range" id="volume" min="0" max="1" step="0.05" value="0" />
+          </div>
+          <audio id="cabin-noise" loop src="/src/assets/cruise.mp3"></audio>
+        </section>
+      </aside>
+
+      <main class="radar-viewport">
+        <div id="map"></div>
+        <div class="telemetry-overlay-badge">
+          <span class="badge-title">GROUND TRACK</span>
+          <span id="map-stat-track">0.00%</span>
+        </div>
+      </main>
+    </div>
   </div>
 
   <div id="boarding-pass-modal" class="modal-backdrop hidden">
     <div id="boarding-pass" class="boarding-pass-card">
-
       <div class="pass-header">
         <div class="brand-group">
           <span class="pass-logo">✈️</span>
@@ -126,7 +175,7 @@
             <span class="meta-label">GATE STATUS</span>
             <div class="status-action-row" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
               <span class="badge-status-green" style="margin-top: 0;">BOARDING READY</span>
-              <button id="share-pass-btn" type="button" title="Download Flight Ticket Snapshot"
+              <button id="share-pass-btn" type="button" title="Download Ticket Snapshot"
                 style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px;">
                 📸 <span>Save Image</span>
               </button>

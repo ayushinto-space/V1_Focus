@@ -12,6 +12,13 @@ let map, planeMarker, flightPath;
 const API_KEY = import.meta.env.VITE_AIRLABS_API_KEY;
 
 // DOM SELECTORS
+// Navigation Screen View Selectors
+const navHomeBtn = document.getElementById('nav-home-btn');
+const navRadarBtn = document.getElementById('nav-radar-btn');
+const ctaRadarBtn = document.getElementById('cta-radar-btn');
+
+const homeView = document.getElementById('home-view');
+const radarView = document.getElementById('radar-view');
 const flightInput = document.getElementById('flight-input');
 const searchBtn = document.getElementById('search-btn');
 const startBtn = document.getElementById('start-btn');
@@ -252,13 +259,13 @@ abortBtn.addEventListener('click', () => {
 });
 
 function sessionTeardown(messageString) {
-  cabinNoise.pause();
+  cabinNoise.pause(); 
   startBtn.classList.remove('hidden');
   abortBtn.classList.add('hidden');
   flightInput.disabled = false;
   searchBtn.disabled = false;
   startBtn.disabled = true;
-  boardingPassModal.classList.add('hidden');
+  boardingPassModal.classList.add('hidden'); 
   statusDisplay.innerText = messageString;
   statusDot.className = "status-dot";
 }
@@ -397,3 +404,30 @@ function parseSharedFlightURL() {
 
 // Fire dynamic parsing checks once map assets settle
 setTimeout(parseSharedFlightURL, 500);
+
+// --- VIEW ROUTING CONTROL SYSTEM ---
+function openRadarView() {
+  homeView.classList.add('hidden-view');
+  radarView.classList.remove('hidden-view');
+  
+  navHomeBtn.classList.remove('active-tab');
+  navRadarBtn.classList.add('active-tab');
+
+  // Trigger Leaflet viewport dimensions recalibration maps
+  setTimeout(() => {
+    if (map) map.invalidateSize();
+  }, 50);
+}
+
+function openHomeView() {
+  radarView.classList.add('hidden-view');
+  homeView.classList.remove('hidden-view');
+
+  navRadarBtn.classList.remove('active-tab');
+  navHomeBtn.classList.add('active-tab');
+}
+
+// Bind Navigation Triggers
+navRadarBtn.addEventListener('click', openRadarView);
+ctaRadarBtn.addEventListener('click', openRadarView);
+navHomeBtn.addEventListener('click', openHomeView);

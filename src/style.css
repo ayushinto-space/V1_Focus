@@ -577,3 +577,184 @@ input[type="range"] {
   height: 32px;
   transform: rotate(0deg);
 }
+
+/* --- GLOBAL NAVIGATION BAR STYLES --- */
+.global-navbar {
+  height: 64px;
+  background: #0f131a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  z-index: 1000;
+}
+
+.nav-brand {
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-tab {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.nav-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.nav-tab.active-tab {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+}
+
+/* Base adjustment for global app container shifting under navbar */
+#app {
+  padding-top: 64px;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+}
+
+/* --- VIEW CONTROL ARCHITECTURES --- */
+.view-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  transition: opacity 0.25s ease;
+}
+
+#home-view {
+  flex-direction: column;
+  padding: 60px max(40px, 8vw);
+  overflow-y: auto;
+  background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.03), transparent 60%), #080a0f;
+}
+
+.hidden-view {
+  display: none !important;
+}
+
+/* --- HOME PAGE CONTENT MATRIX COMPONENTS --- */
+.hero-header-block {
+  max-width: 800px;
+  margin-bottom: 54px;
+}
+
+.hero-header-block h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -1.5px;
+  background: linear-gradient(to right, #ffffff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 16px;
+}
+
+.hero-header-block p {
+  color: #94a3b8;
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+  line-height: 1.6;
+}
+
+/* Modern Grid Options */
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 64px;
+}
+
+.benefit-card {
+  background: #0f131a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 32px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.benefit-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.card-icon {
+  font-size: 2rem;
+  margin-bottom: 20px;
+}
+
+.benefit-card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.benefit-card p {
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Call to Action layout components */
+.quick-start-banner {
+  background: linear-gradient(90deg, rgba(15, 19, 26, 0.8), #0f131a);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 40px;
+  border-radius: 20px;
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto 40px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.quick-start-banner h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: normal;
+}
+
+.quick-start-banner p {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+.cta-primary-action {
+  background: #38bdf8;
+  color: #000;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.cta-primary-action:hover {
+  background: #7dd3fc;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
