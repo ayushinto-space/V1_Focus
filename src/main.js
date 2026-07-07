@@ -1,3 +1,4 @@
+// IMPORTS
 import './style.css';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -12,15 +13,10 @@ let map, planeMarker, flightPath;
 const API_KEY = import.meta.env.VITE_AIRLABS_API_KEY;
 
 // DOM SELECTORS
-// Navigation Screen View Selectors
+// Navigation Screen View
 const navHomeBtn = document.getElementById('nav-home-btn');
 const navRadarBtn = document.getElementById('nav-radar-btn');
 const ctaRadarBtn = document.getElementById('cta-radar-btn');
-const navLogbookBtn = document.getElementById('nav-logbook-btn');
-const logbookView = document.getElementById('logbook-view');
-const logbookRows = document.getElementById('logbook-rows');
-const logbookEmpty = document.getElementById('logbook-empty');
-const clearLogBtn = document.getElementById('clear-log-btn');
 const homeView = document.getElementById('home-view');
 const radarView = document.getElementById('radar-view');
 const flightInput = document.getElementById('flight-input');
@@ -31,6 +27,18 @@ const timeLeftDisplay = document.getElementById('time-left');
 const statusDisplay = document.getElementById('flight-status');
 const statusDot = document.getElementById('status-dot');
 const sharePassBtn = document.getElementById('share-pass-btn');
+
+// Logbook
+const navLogbookBtn = document.getElementById('nav-logbook-btn');
+const logbookView = document.getElementById('logbook-view');
+const logbookRows = document.getElementById('logbook-rows');
+const logbookEmpty = document.getElementById('logbook-empty');
+const clearLogBtn = document.getElementById('clear-log-btn');
+
+// Statistics  
+const statTotalAirtime = document.getElementById('stat-total-airtime');
+const statOtp = document.getElementById('stat-otp');
+const statLongestSector = document.getElementById('stat-longest-sector');
 
 // Popup Modal DOM Elements
 const boardingPassModal = document.getElementById('boarding-pass-modal');
@@ -67,7 +75,7 @@ function calculateBearing(startLat, startLng, endLat, endLng) {
   return (bearing + 360) % 360; // Vector Normalization 
 }
 
-// GLOBAL SEARCH ROUTING (API vs SANDBOX INTERCEPTOR)
+// GLOBAL SEARCH ROUTING (API vs SANDBOX)
 searchBtn.addEventListener('click', async () => {
   const flightNum = flightInput.value.trim().toUpperCase();
   if (!flightNum) return alert('Enter a validation vector.');
@@ -259,8 +267,25 @@ startBtn.addEventListener('click', () => {
 
 // ABORT OPERATIONS
 abortBtn.addEventListener('click', () => {
-  clearInterval(timerInterval);
-  sessionTeardown("Session Interrupted by Flight Deck.");
+  // Capture the log BEFORE UI is wiped
+  appendAbortedFlightToLogbook();
+
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  statusDisplay.innerText = "Session Interrupted by Flight Deck.";
+  statusDot.className = "status-dot";
+  boardingPassModal.classList.add('hidden');
+
+  // Clean up Map if it exists
+  if (flightPath) map.removeLayer(flightPath);
+  if (planeMarker) map.removeLayer(planeMarker);
+
+  if (typeof sessionTeardown === 'function') {
+    sessionTeardown("Flight Aborted.");
+  }
 });
 
 function sessionTeardown(messageString) {
@@ -335,12 +360,11 @@ sharePassBtn.addEventListener('click', async () => {
 
   // Capture the element
   const canvas = await html2canvas(passElement, {
-    backgroundColor: '#0f131a', // Match your dark theme
-    scale: 2, // High resolution for IG
+    backgroundColor: '#0f131a', 
+    scale: 2, // High res
     logging: false
   });
 
-  // Reset the close button
   closeBtn.style.display = 'block';
 
   // Convert to image and download
@@ -372,6 +396,39 @@ function loadLogbook() {
   const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
   logbookRows.innerHTML = '';
 
+  // Calculate Blackbox Telemetry Dashboard Archive Analytics
+  let totalMinutes = 0;
+  let longestFlightMinutes = 0;
+  let successfulFlightsCount = 0;
+
+  logs.forEach(log => {
+    // Text parsers converting down to integer values
+    const parsedMinutes = parseInt(log.duration) || 0;
+    totalMinutes += parsedMinutes;
+
+    if (parsedMinutes > longestFlightMinutes) {
+      longestFlightMinutes = parsedMinutes;
+    }
+
+    if (log.status === "COMPLETED") {
+      successfulFlightsCount++;
+    }
+  });
+
+  // Calculate your OTP
+  // To keep track of aborted runs, evaluate total logs vs completed logs.
+  const totalFlightsLoggedCount = logs.length;
+  const computedOtpPercent = totalFlightsLoggedCount > 0
+    ? ((successfulFlightsCount / totalFlightsLoggedCount) * 100).toFixed(1)
+    : "100.0";
+
+  // Format outputs and render elements straight to telemetry digital dashboard glass display panels
+  const totalHoursLoggedDisplay = (totalMinutes / 60).toFixed(1);
+  statTotalAirtime.innerText = `${totalHoursLoggedDisplay} HRS`;
+  statOtp.innerText = `${computedOtpPercent}%`;
+  statLongestSector.innerText = longestFlightMinutes > 0 ? `${longestFlightMinutes} MIN` : `-- MIN`;
+
+  // Table Rendering System 
   if (logs.length === 0) {
     logbookEmpty.classList.remove('hidden');
     return;
@@ -380,13 +437,18 @@ function loadLogbook() {
 
   logs.forEach(log => {
     const tr = document.createElement('tr');
+
+    // Status color configurations token selection routing 
+    const badgeMarkupStyleClass = log.status === "ABORTED" ? "badge-status-red" : "badge-status-green";
+    const displayedStatusTextValue = log.status || "COMPLETED";
+
     tr.innerHTML = `
       <td class="log-date">${log.date}</td>
       <td class="log-flight">${log.flightNum}</td>
       <td class="log-route">${log.dep} ➔ ${log.arr}</td>
       <td><span style="opacity: 0.7;">Focus Elite /</span> <strong>${log.seat}</strong></td>
       <td class="log-duration">${log.duration}</td>
-      <td><span class="badge-status-green" style="margin:0; padding:2px 8px; font-size:0.65rem;">COMPLETED</span></td>
+      <td><span class="${badgeMarkupStyleClass}" style="margin:0; padding:2px 8px; font-size:0.65rem;">${displayedStatusTextValue}</span></td>
     `;
     logbookRows.appendChild(tr);
   });
@@ -394,7 +456,7 @@ function loadLogbook() {
 
 function appendFlightToLogbook() {
   const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
-  
+
   // Scrape text tokens straight out of your live card elements
   const currentFlightLog = {
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
@@ -405,7 +467,30 @@ function appendFlightToLogbook() {
     duration: passDuration.innerText || "30m"
   };
 
-  logs.unshift(currentFlightLog); // Place new mission at the top
+  logs.unshift(currentFlightLog); // New mission at top
+  localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
+  loadLogbook();
+}
+
+// Function for aborted flights
+function appendAbortedFlightToLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+
+  const minutesElapsedSoFar = totalDuration && timeRemaining
+    ? Math.round((totalDuration - timeRemaining) / 60)
+    : 0;
+
+  const currentFlightLog = {
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    flightNum: passFlightNum.innerText || "POMO",
+    dep: passDep.innerText || "BOM",
+    arr: passArr.innerText || "GOX",
+    seat: document.querySelector('.meta-value.text-accent')?.innerText?.split('/')[1]?.trim() || "1A",
+    duration: `${minutesElapsedSoFar}m`,
+    status: "ABORTED" // Matches the structure
+  };
+
+  logs.unshift(currentFlightLog);
   localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
   loadLogbook();
 }

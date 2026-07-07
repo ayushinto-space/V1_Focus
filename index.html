@@ -26,7 +26,7 @@
     <main id="home-view" class="view-container">
       <section class="hero-header-block">
         <h1>Dive into an upgraded experience of Pomodoro with V1 Focus</h1>
-        <p>A focus timer that turns your next work session into a flight you are to board.</p>
+        <p>A focus timer that turns your next work session into a flight to board.</p>
       </section>
 
       <div class="benefits-grid">
@@ -56,8 +56,8 @@
         <div class="benefit-card">
           <div class="card-icon">📸</div>
           <h3>Verified Boarding Pass</h3>
-          <p>Upon initialization, the system constructs a digital boarding pass of your study sesssion.
-            Export it instantly to let your friends and folks know that you have embarked into a silent journey.</p>
+          <p>Upon initialization the system constructs a digital boarding pass of your study sesssion.
+            Export it instantly to let your friends and folks know that you have embarked on a silent journey.</p>
         </div>
       </div>
 
@@ -103,7 +103,7 @@
           <h3>CABIN ENVIRONMENT</h3>
           <div class="volume-control">
             <div class="vol-label-row">
-              <label for="volume">White Noise Engine</label>
+              <label for="volume">Engine Noise</label>
               <span id="volume-pct">0%</span>
             </div>
             <input type="range" id="volume" min="0" max="1" step="0.05" value="0" />
@@ -125,9 +125,29 @@
         <div class="logbook-header">
           <div>
             <h1>PILOT FLIGHT LOGBOOK</h1>
-            <p class="tagline">Official historical manifest of completed focus trajectories</p>
+            <p class="tagline">Official manifest of completed focus trajectories</p>
           </div>
           <button id="clear-log-btn" class="btn-danger-small" type="button">Purge Manifest</button>
+        </div>
+
+        <div class="blackbox-dashboard-grid">
+          <div class="telemetry-card-panel">
+            <span class="panel-label-tag">TOTAL AIR TIME</span>
+            <div class="panel-digital-readout" id="stat-total-airtime">0.0 HRS</div>
+            <span class="panel-footer-subtext">Accumulated logged mission focus hours</span>
+          </div>
+
+          <div class="telemetry-card-panel">
+            <span class="panel-label-tag">ON-TIME PERFORMANCE</span>
+            <div class="panel-digital-readout" id="stat-otp">100.0%</div>
+            <span class="panel-footer-subtext">Completion rate vs Aborted flights</span>
+          </div>
+
+          <div class="telemetry-card-panel">
+            <span class="panel-label-tag">LONGEST SECTOR</span>
+            <div class="panel-digital-readout" id="stat-longest-sector">-- MIN</div>
+            <span class="panel-footer-subtext">Peak uninterrupted focus cruise duration</span>
+          </div>
         </div>
 
         <div class="logbook-table-container">
@@ -171,7 +191,7 @@
         <div class="pass-meta-row">
           <div class="meta-block">
             <span class="meta-label">PASSENGER</span>
-            <span class="meta-value">Deep Worker</span>
+            <span class="meta-value">PAX-001</span>
           </div>
           <div class="meta-block alignment-right">
             <span class="meta-label">CLASS / SEAT</span>

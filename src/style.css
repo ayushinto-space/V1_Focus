@@ -764,14 +764,17 @@ input[type="range"] {
    MOBILE & RESPONSIVE BREAKPOINT (768px and below)
    ========================================================================== */
 @media (max-width: 768px) {
+
   /* Global Page Fixes */
   body {
-    overflow-y: auto !important; /* Allow layout scrolling instead of breaking */
+    overflow-y: auto !important;
+    /* Allow layout scrolling instead of breaking */
     height: auto !important;
   }
 
   #app {
-    flex-direction: column !important; /* Changes sidebar + radar from row to column stacked */
+    flex-direction: column !important;
+    /* Changes sidebar + radar from row to column stacked */
     height: auto !important;
     min-height: calc(100vh - 64px);
     width: 100vw;
@@ -794,7 +797,8 @@ input[type="range"] {
   }
 
   .nav-tab {
-    flex: 1; /* Tabs share equal space on mobile screens */
+    flex: 1;
+    /* Tabs share equal space on mobile screens */
     text-align: center;
     padding: 8px 12px;
   }
@@ -818,16 +822,20 @@ input[type="range"] {
 
   /* Radar/Map Area Component Fix */
   #radar-view {
-    flex-direction: column !important; /* Change side-by-side internal components */
+    flex-direction: column !important;
+    /* Change side-by-side internal components */
     height: auto !important;
   }
 
   .radar-viewport {
     width: 100% !important;
-    height: 55vh !important; /* Force the map to take over half the viewport height dynamically */
-    min-height: 380px !important; /* Stop container height collapse */
+    height: 55vh !important;
+    /* Force the map to take over half the viewport height dynamically */
+    min-height: 380px !important;
+    /* Stop container height collapse */
     position: relative !important;
-    order: 2; /* Put the wide map surface directly under the control layout */
+    order: 2;
+    /* Put the wide map surface directly under the control layout */
   }
 
   /* Adjust overlays on mobile map layout surfaces */
@@ -917,10 +925,27 @@ input[type="range"] {
   background: rgba(255, 255, 255, 0.01);
 }
 
-.log-date { font-family: 'JetBrains Mono', monospace; color: #94a3b8; }
-.log-flight { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent-color); }
-.log-route { font-weight: 600; letter-spacing: -0.2px; }
-.log-duration { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; }
+.log-date {
+  font-family: 'JetBrains Mono', monospace;
+  color: #94a3b8;
+}
+
+.log-flight {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--accent-color);
+}
+
+.log-route {
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.log-duration {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #fff;
+}
 
 .empty-state {
   padding: 64px 24px;
@@ -928,4 +953,66 @@ input[type="range"] {
   color: var(--text-muted);
 }
 
-.empty-icon { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.4; }
+.empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+/* --- BLACKBOX TELEMETRY ARCHIVE INSTRUMENTS --- */
+.blackbox-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.telemetry-card-panel {
+  background: rgba(15, 19, 26, 0.75);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle crosshair grid overlay mimicking a glass cockpit multi-function display */
+.telemetry-card-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-size: 20px 20px;
+  pointer-events: none;
+}
+
+.panel-label-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.panel-digital-readout {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  line-height: 1;
+  margin-bottom: 8px;
+  text-shadow: 0 0 15px rgba(56, 189, 248, 0.25);
+}
+
+.panel-footer-subtext {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 500;
+}
