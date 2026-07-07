@@ -16,7 +16,11 @@ const API_KEY = import.meta.env.VITE_AIRLABS_API_KEY;
 const navHomeBtn = document.getElementById('nav-home-btn');
 const navRadarBtn = document.getElementById('nav-radar-btn');
 const ctaRadarBtn = document.getElementById('cta-radar-btn');
-
+const navLogbookBtn = document.getElementById('nav-logbook-btn');
+const logbookView = document.getElementById('logbook-view');
+const logbookRows = document.getElementById('logbook-rows');
+const logbookEmpty = document.getElementById('logbook-empty');
+const clearLogBtn = document.getElementById('clear-log-btn');
 const homeView = document.getElementById('home-view');
 const radarView = document.getElementById('radar-view');
 const flightInput = document.getElementById('flight-input');
@@ -247,6 +251,7 @@ startBtn.addEventListener('click', () => {
 
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
+      appendFlightToLogbook();
       sessionTeardown("Wheels Down. Welcome to your destination! 🎉");
     }
   }, 1000);
@@ -363,11 +368,55 @@ function parseSharedFlightURL() {
 setTimeout(parseSharedFlightURL, 500);
 
 // --- VIEW ROUTING CONTROL SYSTEM ---
+function loadLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+  logbookRows.innerHTML = '';
+
+  if (logs.length === 0) {
+    logbookEmpty.classList.remove('hidden');
+    return;
+  }
+  logbookEmpty.classList.add('hidden');
+
+  logs.forEach(log => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="log-date">${log.date}</td>
+      <td class="log-flight">${log.flightNum}</td>
+      <td class="log-route">${log.dep} ➔ ${log.arr}</td>
+      <td><span style="opacity: 0.7;">Focus Elite /</span> <strong>${log.seat}</strong></td>
+      <td class="log-duration">${log.duration}</td>
+      <td><span class="badge-status-green" style="margin:0; padding:2px 8px; font-size:0.65rem;">COMPLETED</span></td>
+    `;
+    logbookRows.appendChild(tr);
+  });
+}
+
+function appendFlightToLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+  
+  // Scrape text tokens straight out of your live card elements
+  const currentFlightLog = {
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    flightNum: passFlightNum.innerText || "POMO",
+    dep: passDep.innerText || "BOM",
+    arr: passArr.innerText || "GOX",
+    seat: document.querySelector('.meta-value.text-accent')?.innerText?.split('/')[1]?.trim() || "1A",
+    duration: passDuration.innerText || "30m"
+  };
+
+  logs.unshift(currentFlightLog); // Place new mission at the top
+  localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
+  loadLogbook();
+}
+
 function openRadarView() {
   homeView.classList.add('hidden-view');
+  logbookView.classList.add('hidden-view');
   radarView.classList.remove('hidden-view');
 
   navHomeBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.remove('active-tab');
   navRadarBtn.classList.add('active-tab');
 
   // Trigger Leaflet viewport dimensions recalibration maps
@@ -387,13 +436,38 @@ window.addEventListener('resize', () => {
 
 function openHomeView() {
   radarView.classList.add('hidden-view');
+  logbookView.classList.add('hidden-view');
   homeView.classList.remove('hidden-view');
 
   navRadarBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.remove('active-tab');
   navHomeBtn.classList.add('active-tab');
+}
+
+function openLogbookView() {
+  homeView.classList.add('hidden-view');
+  radarView.classList.add('hidden-view');
+  logbookView.classList.remove('hidden-view'); // Open logbook view
+
+  navHomeBtn.classList.remove('active-tab');
+  navRadarBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.add('active-tab');
+
+  loadLogbook(); // Refresh layout numbers
 }
 
 // Bind Navigation Triggers
 navRadarBtn.addEventListener('click', openRadarView);
 ctaRadarBtn.addEventListener('click', openRadarView);
 navHomeBtn.addEventListener('click', openHomeView);
+navLogbookBtn.addEventListener('click', openLogbookView);
+
+clearLogBtn.addEventListener('click', () => {
+  if (confirm('Are you clear to scrub the official flight manifest logbook logs? This cannot be undone.')) {
+    localStorage.removeItem('v1_flight_logs');
+    loadLogbook();
+  }
+});
+
+// Load records immediately upon compilation boot check
+loadLogbook();

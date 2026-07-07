@@ -18,6 +18,7 @@
     <div class="nav-actions">
       <button id="nav-home-btn" class="nav-tab active-tab" type="button">Dashboard Home</button>
       <button id="nav-radar-btn" class="nav-tab" type="button">Flight Control</button>
+      <button id="nav-logbook-btn" class="nav-tab" type="button">Pilot Logbook</button>
     </div>
   </nav>
 
@@ -119,6 +120,38 @@
         </div>
       </main>
     </div>
+    <main id="logbook-view" class="view-container hidden-view">
+      <div class="logbook-wrapper">
+        <div class="logbook-header">
+          <div>
+            <h1>PILOT FLIGHT LOGBOOK</h1>
+            <p class="tagline">Official historical manifest of completed focus trajectories</p>
+          </div>
+          <button id="clear-log-btn" class="btn-danger-small" type="button">Purge Manifest</button>
+        </div>
+
+        <div class="logbook-table-container">
+          <table class="aviation-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>FLIGHT / RECORD</th>
+                <th>ROUTE (DEP ➔ ARR)</th>
+                <th>SEAT</th>
+                <th>DURATION</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="logbook-rows">
+            </tbody>
+          </table>
+          <div id="logbook-empty" class="empty-state">
+            <div class="empty-icon">📁</div>
+            <p>No records found in the telemetry registry archive.</p>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
   <div id="boarding-pass-modal" class="modal-backdrop hidden">

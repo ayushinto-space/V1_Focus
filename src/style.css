@@ -836,3 +836,96 @@ input[type="range"] {
     right: 16px !important;
   }
 }
+
+/* --- AVIATION FLIGHT LOGBOOK LAYOUTS --- */
+#logbook-view {
+  flex-direction: column;
+  padding: max(40px, 4vw) max(40px, 6vw);
+  overflow-y: auto;
+  background: radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.02), transparent 50%), #080a0f;
+}
+
+.logbook-wrapper {
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.logbook-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 24px;
+}
+
+.logbook-header h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+.btn-danger-small {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.05);
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.btn-danger-small:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.logbook-table-container {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.aviation-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.aviation-table th {
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  padding: 16px 24px;
+}
+
+.aviation-table td {
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+}
+
+.aviation-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.log-date { font-family: 'JetBrains Mono', monospace; color: #94a3b8; }
+.log-flight { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent-color); }
+.log-route { font-weight: 600; letter-spacing: -0.2px; }
+.log-duration { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: #fff; }
+
+.empty-state {
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-icon { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.4; }
