@@ -146,7 +146,7 @@ searchBtn.addEventListener('click', async () => {
       console.log(`📍 Target destination established natively: ${airportInfo.name} (${endPos})`);
 
       // MATHEMATICAL HAVERSINE MEASUREMENT FROM CURRENT GPS POSITION TO DEST
-      const R = 6371; 
+      const R = 6371;
       const dLat = (endPos[0] - startPos[0]) * Math.PI / 180;
       const dLon = (endPos[1] - startPos[1]) * Math.PI / 180;
 
@@ -259,13 +259,13 @@ abortBtn.addEventListener('click', () => {
 });
 
 function sessionTeardown(messageString) {
-  cabinNoise.pause(); 
+  cabinNoise.pause();
   startBtn.classList.remove('hidden');
   abortBtn.classList.add('hidden');
   flightInput.disabled = false;
   searchBtn.disabled = false;
   startBtn.disabled = true;
-  boardingPassModal.classList.add('hidden'); 
+  boardingPassModal.classList.add('hidden');
   statusDisplay.innerText = messageString;
   statusDot.className = "status-dot";
 }
@@ -409,7 +409,7 @@ setTimeout(parseSharedFlightURL, 500);
 function openRadarView() {
   homeView.classList.add('hidden-view');
   radarView.classList.remove('hidden-view');
-  
+
   navHomeBtn.classList.remove('active-tab');
   navRadarBtn.classList.add('active-tab');
 
