@@ -1,7 +1,7 @@
 # V1 Focus: Aviation-Grade Productivity
 V1 Focus is a focus management platform that treats your productivity sessions as official flight operations. By mapping Pomodoro-style deep work to real-world flight telemetry, V1 Focus transforms your task tracking into a professional pilot’s logbook, complete with mission archives, career progression, and live radar tracking.
 
-# ✈️ Mission Philosophy
+## ✈️ Mission Philosophy
 Productivity isn't just about timers; it’s about intent. 
 Flight-Based Workflow: Every focus session is a "Flight." You have a departure (start), a cruise (deep work), and an arrival (completion).
 Operational Transparency: Track your performance via a "Blackbox" telemetry archive that calculates your On-Time Performance (OTP) and logs every mission status.
