@@ -764,23 +764,18 @@ input[type="range"] {
    MOBILE & RESPONSIVE BREAKPOINT (768px and below)
    ========================================================================== */
 @media (max-width: 768px) {
-
-  /* Global Page Fixes */
   body {
     overflow-y: auto !important;
-    /* Allow layout scrolling instead of breaking */
     height: auto !important;
   }
 
   #app {
     flex-direction: column !important;
-    /* Changes sidebar + radar from row to column stacked */
     height: auto !important;
     min-height: calc(100vh - 64px);
     width: 100vw;
   }
 
-  /* Responsive Navigation System */
   .global-navbar {
     padding: 12px 16px;
     flex-direction: column;
@@ -798,18 +793,15 @@ input[type="range"] {
 
   .nav-tab {
     flex: 1;
-    /* Tabs share equal space on mobile screens */
     text-align: center;
     padding: 8px 12px;
   }
 
-  /* View Architecture Adjustments */
   .view-container {
     padding: 24px 16px !important;
     height: auto !important;
   }
 
-  /* Control Sidebar Panel Stack */
   .control-panel {
     width: 100% !important;
     min-width: 100% !important;
@@ -820,26 +812,21 @@ input[type="range"] {
     gap: 24px !important;
   }
 
-  /* Radar/Map Area Component Fix */
   #radar-view {
     flex-direction: column !important;
-    /* Change side-by-side internal components */
     height: auto !important;
   }
 
   .radar-viewport {
     width: 100% !important;
     height: 55vh !important;
-    /* Force the map to take over half the viewport height dynamically */
     min-height: 380px !important;
-    /* Stop container height collapse */
     position: relative !important;
     order: 2;
-    /* Put the wide map surface directly under the control layout */
   }
 
-  /* Adjust overlays on mobile map layout surfaces */
-  .ground-track-hud {
+  /* Fixed from .ground-track-hud to your actual HTML class target */
+  .telemetry-overlay-badge {
     top: 16px !important;
     right: 16px !important;
   }
@@ -978,7 +965,6 @@ input[type="range"] {
   overflow: hidden;
 }
 
-/* Subtle crosshair grid overlay mimicking a glass cockpit multi-function display */
 .telemetry-card-panel::before {
   content: '';
   position: absolute;

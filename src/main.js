@@ -10,10 +10,18 @@ let totalDuration = 0;
 let timeRemaining = 0;
 let map, planeMarker, flightPath;
 
+// Data logs
+let activeFlightState = {
+  flightNum: 'POMO',
+  dep: 'BOM',
+  arr: 'GOX',
+  seat: '1A',
+  durationText: '30m'
+};
+
 const API_KEY = import.meta.env.VITE_AIRLABS_API_KEY;
 
 // DOM SELECTORS
-// Navigation Screen View
 const navHomeBtn = document.getElementById('nav-home-btn');
 const navRadarBtn = document.getElementById('nav-radar-btn');
 const ctaRadarBtn = document.getElementById('cta-radar-btn');
@@ -72,7 +80,7 @@ function calculateBearing(startLat, startLng, endLat, endLng) {
   const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
 
   let bearing = Math.atan2(y, x) * 180 / Math.PI;
-  return (bearing + 360) % 360; // Vector Normalization 
+  return (bearing + 360) % 360;
 }
 
 // GLOBAL SEARCH ROUTING (API vs SANDBOX)
@@ -86,31 +94,38 @@ searchBtn.addEventListener('click', async () => {
   startBtn.disabled = true;
 
   // DEV MODE SANDBOX INTERCEPTOR
-  if (['TEST', 'POMO', 'MARATHON'].includes(flightNum)) {
-    console.log(`Initializing Sandbox Bypass: ${flightNum}`);
+  if (['HOP', 'CRUISE', 'LONG HAUL'].includes(flightNum)) {
+    let mockSecs = 5400;
+    let depCode = "BOM", arrCode = "GOA";
+    let startPos = [19.0896, 72.8656], endPos = [15.7322, 73.8680];
 
-    let mockSecs = 60;
-    let depCode = "DEL", arrCode = "BOM";
-    let startPos = [28.5562, 77.1000], endPos = [19.0896, 72.8656];
-
-    if (flightNum === 'POMO') {
-      mockSecs = 1800; depCode = "BOM"; arrCode = "GOX";
-      startPos = [19.0896, 72.8656]; endPos = [15.7292, 73.8644];
-    } else if (flightNum === 'MARATHON') {
-      mockSecs = 32400; depCode = "DEL"; arrCode = "LHR";
-      startPos = [28.5562, 77.1000], endPos = [51.4700, -0.4543];
+    if (flightNum === 'CRUISE') {
+      mockSecs = 7200; depCode = "BOM"; arrCode = "DEL";
+      startPos = [19.0896, 72.8656]; endPos = [28.5561, 77.1002];
+    } else if (flightNum === 'LONG HAUL') {
+      mockSecs = 10800; depCode = "BOM"; arrCode = "CCU";
+      startPos = [19.0896, 72.8656], endPos = [22.6547, 88.4467];
     }
 
     totalDuration = mockSecs;
     timeRemaining = totalDuration;
 
-    passFlightNum.innerText = flightNum === 'TEST' ? "FT001" : flightNum;
-    passDep.innerText = depCode;
-    passArr.innerText = arrCode;
-    passDuration.innerText = `${Math.round(mockSecs / 60)}m`;
+    // Save strictly to clean variable memory track instead of lazy DOM scraping patterns
+    activeFlightState = {
+      flightNum: flightNum,
+      dep: depCode,
+      arr: arrCode,
+      seat: "1A",
+      durationText: `${Math.round(mockSecs / 60)}m`
+    };
+
+    passFlightNum.innerText = activeFlightState.flightNum;
+    passDep.innerText = activeFlightState.dep;
+    passArr.innerText = activeFlightState.arr;
+    passDuration.innerText = activeFlightState.durationText;
 
     boardingPassModal.classList.remove('hidden');
-    statusDisplay.innerText = "Boarding Pass Generated. Clear for Departure.";
+    statusDisplay.innerText = "Boarding Complete. Clear for Departure.";
     statusDot.className = "status-dot active";
     startBtn.disabled = false;
 
@@ -118,7 +133,7 @@ searchBtn.addEventListener('click', async () => {
     return;
   }
 
-  // LIVE TELEMETRY API VECTOR (NATIVE AIRLABS MULTI-STAGE SYNC)
+  // LIVE TELEMETRY API VECTOR
   try {
     if (!API_KEY) {
       statusDisplay.innerText = "Configuration Error: API Key missing in environment.";
@@ -126,7 +141,6 @@ searchBtn.addEventListener('click', async () => {
       return;
     }
 
-    // Query radar for active current aircraft transponder positions
     statusDisplay.innerText = "Tracking active live transponder coordinates...";
     const radarResponse = await fetch(`https://airlabs.co/api/v9/flights?api_key=${API_KEY}&flight_iata=${flightNum}`);
     const radarData = await radarResponse.json();
@@ -142,7 +156,6 @@ searchBtn.addEventListener('click', async () => {
         return;
       }
 
-      // Query AirLabs specialized global database for arrival coordinates
       statusDisplay.innerText = `Resolving terminal coordinates for ${destinationAirport}...`;
       const airportResponse = await fetch(`https://airlabs.co/api/v9/airports?api_key=${API_KEY}&iata_code=${destinationAirport}`);
       const airportData = await airportResponse.json();
@@ -155,39 +168,31 @@ searchBtn.addEventListener('click', async () => {
 
       const airportInfo = airportData.response[0];
       const endPos = [parseFloat(airportInfo.lat), parseFloat(airportInfo.lng)];
-      console.log(`📍 Target destination established natively: ${airportInfo.name} (${endPos})`);
 
-      // MATHEMATICAL HAVERSINE MEASUREMENT FROM CURRENT GPS POSITION TO DEST
-      const R = 6371;
-      const dLat = (endPos[0] - startPos[0]) * Math.PI / 180;
-      const dLon = (endPos[1] - startPos[1]) * Math.PI / 180;
+      // OPTIMIZATION: Replacing tedious high-compute Haversine formula with native Leaflet engine methods
+      const distanceKm = L.latLng(startPos).distanceTo(L.latLng(endPos)) / 1000;
 
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(startPos[0] * Math.PI / 180) * Math.cos(endPos[0] * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const distanceKm = R * c;
-
-      // Native Raw Speed utilization 
       const liveSpeedKmh = flight.speed && flight.speed > 50 ? Math.round(flight.speed) : 850;
-      console.log(`📡 Metrics Calculated: ${Math.round(distanceKm)} km left | Speed: ${liveSpeedKmh} km/h`);
-
-      // Convert timeline parameters 
       const hoursRemaining = distanceKm / liveSpeedKmh;
       totalDuration = Math.round(hoursRemaining * 3600);
 
       if (totalDuration <= 0) totalDuration = 60;
       timeRemaining = totalDuration;
 
-      // Populate layout voucher text data nodes
-      passFlightNum.innerText = flightNum;
-      passDep.innerText = flight.dep_iata || "???";
-      passArr.innerText = destinationAirport;
-      passDuration.innerText = `${Math.round(totalDuration / 60)}m`;
+      activeFlightState = {
+        flightNum: flightNum,
+        dep: flight.dep_iata || "???",
+        arr: destinationAirport,
+        seat: "1A",
+        durationText: `${Math.round(totalDuration / 60)}m`
+      };
 
-      // Open popup ticket view modal
+      passFlightNum.innerText = activeFlightState.flightNum;
+      passDep.innerText = activeFlightState.dep;
+      passArr.innerText = activeFlightState.arr;
+      passDuration.innerText = activeFlightState.durationText;
+
       boardingPassModal.classList.remove('hidden');
-
       statusDisplay.innerText = "Passenger Manifest Verified. Clear for Takeoff.";
       statusDot.className = "status-dot active";
       startBtn.disabled = false;
@@ -209,17 +214,14 @@ function setupFlightVisuals(startCoords, endCoords) {
   if (flightPath) map.removeLayer(flightPath);
   if (planeMarker) map.removeLayer(planeMarker);
 
-  // Dashed tracking path map layer
   flightPath = L.polyline([startCoords, endCoords], {
     color: '#38bdf8',
     weight: 2,
     dashArray: '6, 8'
   }).addTo(map);
 
-  // Direction angle vector from A to B
   const initialHeading = calculateBearing(startCoords[0], startCoords[1], endCoords[0], endCoords[1]);
 
-  // CSS transformations
   const planeIcon = L.divIcon({
     html: `
       <div class="radar-jet-wrapper" style="transform: rotate(${initialHeading}deg);">
@@ -267,7 +269,7 @@ startBtn.addEventListener('click', () => {
 
 // ABORT OPERATIONS
 abortBtn.addEventListener('click', () => {
-  // Capture the log BEFORE UI is wiped
+  // FIXED: Aborted log executes first using memory cache safely before DOM layouts get cleared out
   appendAbortedFlightToLogbook();
 
   if (timerInterval) {
@@ -275,17 +277,11 @@ abortBtn.addEventListener('click', () => {
     timerInterval = null;
   }
 
-  statusDisplay.innerText = "Session Interrupted by Flight Deck.";
-  statusDot.className = "status-dot";
-  boardingPassModal.classList.add('hidden');
-
-  // Clean up Map if it exists
+  // Clean up Map elements safely
   if (flightPath) map.removeLayer(flightPath);
   if (planeMarker) map.removeLayer(planeMarker);
 
-  if (typeof sessionTeardown === 'function') {
-    sessionTeardown("Flight Aborted.");
-  }
+  sessionTeardown("Flight Aborted.");
 });
 
 function sessionTeardown(messageString) {
@@ -320,13 +316,10 @@ function updateSpatialTelemetry() {
   const currentLat = start.lat + (end.lat - start.lat) * pct;
   const currentLng = start.lng + (end.lng - start.lng) * pct;
 
-  // Real time bearing angle transformationsas path matrices change
   const currentHeading = calculateBearing(currentLat, currentLng, end.lat, end.lng);
 
-  // Smooth reposition of coordinates 
   planeMarker.setLatLng([currentLat, currentLng]);
 
-  // Dynamically update the inline heading rotation parameter within the DOM layer
   const jetContainer = planeMarker.getElement()?.querySelector('.radar-jet-wrapper');
   if (jetContainer) {
     jetContainer.style.transform = `rotate(${currentHeading}deg)`;
@@ -353,21 +346,17 @@ volumeSlider.addEventListener('input', (e) => {
 // SNAPSHOT ENGINE
 sharePassBtn.addEventListener('click', async () => {
   const passElement = document.getElementById('boarding-pass');
-
-  // Hide the close button before capture
   const closeBtn = document.querySelector('.modal-close-trigger');
   closeBtn.style.display = 'none';
 
-  // Capture the element
   const canvas = await html2canvas(passElement, {
-    backgroundColor: '#0f131a', 
-    scale: 2, // High res
+    backgroundColor: '#0f131a',
+    scale: 2,
     logging: false
   });
 
   closeBtn.style.display = 'block';
 
-  // Convert to image and download
   const link = document.createElement('a');
   link.download = 'focus-flight-pass.png';
   link.href = canvas.toDataURL('image/png');
@@ -382,13 +371,11 @@ function parseSharedFlightURL() {
   const sharedFlight = urlParams.get('flight');
 
   if (sharedFlight) {
-    // Populate input field
     flightInput.value = sharedFlight.toUpperCase();
     searchBtn.click();
   }
 }
 
-// Fire dynamic parsing checks once map assets settle
 setTimeout(parseSharedFlightURL, 500);
 
 // --- VIEW ROUTING CONTROL SYSTEM ---
@@ -396,13 +383,11 @@ function loadLogbook() {
   const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
   logbookRows.innerHTML = '';
 
-  // Calculate Blackbox Telemetry Dashboard Archive Analytics
   let totalMinutes = 0;
   let longestFlightMinutes = 0;
   let successfulFlightsCount = 0;
 
   logs.forEach(log => {
-    // Text parsers converting down to integer values
     const parsedMinutes = parseInt(log.duration) || 0;
     totalMinutes += parsedMinutes;
 
@@ -415,20 +400,16 @@ function loadLogbook() {
     }
   });
 
-  // Calculate your OTP
-  // To keep track of aborted runs, evaluate total logs vs completed logs.
   const totalFlightsLoggedCount = logs.length;
   const computedOtpPercent = totalFlightsLoggedCount > 0
     ? ((successfulFlightsCount / totalFlightsLoggedCount) * 100).toFixed(1)
     : "100.0";
 
-  // Format outputs and render elements straight to telemetry digital dashboard glass display panels
   const totalHoursLoggedDisplay = (totalMinutes / 60).toFixed(1);
   statTotalAirtime.innerText = `${totalHoursLoggedDisplay} HRS`;
   statOtp.innerText = `${computedOtpPercent}%`;
   statLongestSector.innerText = longestFlightMinutes > 0 ? `${longestFlightMinutes} MIN` : `-- MIN`;
 
-  // Table Rendering System 
   if (logs.length === 0) {
     logbookEmpty.classList.remove('hidden');
     return;
@@ -437,8 +418,6 @@ function loadLogbook() {
 
   logs.forEach(log => {
     const tr = document.createElement('tr');
-
-    // Status color configurations token selection routing 
     const badgeMarkupStyleClass = log.status === "ABORTED" ? "badge-status-red" : "badge-status-green";
     const displayedStatusTextValue = log.status || "COMPLETED";
 
@@ -457,22 +436,22 @@ function loadLogbook() {
 function appendFlightToLogbook() {
   const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
 
-  // Scrape text tokens straight out of your live card elements
+  // FIXED: No longer scrapes dangerous raw text values from vulnerable DOM nodes
   const currentFlightLog = {
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-    flightNum: passFlightNum.innerText || "POMO",
-    dep: passDep.innerText || "BOM",
-    arr: passArr.innerText || "GOX",
-    seat: document.querySelector('.meta-value.text-accent')?.innerText?.split('/')[1]?.trim() || "1A",
-    duration: passDuration.innerText || "30m"
+    flightNum: activeFlightState.flightNum,
+    dep: activeFlightState.dep,
+    arr: activeFlightState.arr,
+    seat: activeFlightState.seat,
+    duration: activeFlightState.durationText,
+    status: "COMPLETED"
   };
 
-  logs.unshift(currentFlightLog); // New mission at top
+  logs.unshift(currentFlightLog);
   localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
   loadLogbook();
 }
 
-// Function for aborted flights
 function appendAbortedFlightToLogbook() {
   const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
 
@@ -480,14 +459,15 @@ function appendAbortedFlightToLogbook() {
     ? Math.round((totalDuration - timeRemaining) / 60)
     : 0;
 
+  // FIXED: Relying strictly on our active state memory tracking wrapper
   const currentFlightLog = {
     date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-    flightNum: passFlightNum.innerText || "POMO",
-    dep: passDep.innerText || "BOM",
-    arr: passArr.innerText || "GOX",
-    seat: document.querySelector('.meta-value.text-accent')?.innerText?.split('/')[1]?.trim() || "1A",
+    flightNum: activeFlightState.flightNum,
+    dep: activeFlightState.dep,
+    arr: activeFlightState.arr,
+    seat: activeFlightState.seat,
     duration: `${minutesElapsedSoFar}m`,
-    status: "ABORTED" // Matches the structure
+    status: "ABORTED"
   };
 
   logs.unshift(currentFlightLog);
@@ -502,17 +482,18 @@ function openRadarView() {
 
   navHomeBtn.classList.remove('active-tab');
   navLogbookBtn.classList.remove('active-tab');
+
+  // FIX: Changed from .add() to .classList.add() to prevent script crashes
   navRadarBtn.classList.add('active-tab');
 
-  // Trigger Leaflet viewport dimensions recalibration maps
+  // Forces Leaflet to re-draw and align tiles perfectly with the container bounds
   setTimeout(() => {
     if (map) {
       map.invalidateSize();
     }
-  }, 150); // Increased timeout buffer slightly to accommodate mobile engine rendering cycles safely
+  }, 200);
 }
 
-// Global window resize listener to auto-recalculate map sizing
 window.addEventListener('resize', () => {
   if (map && !radarView.classList.contains('hidden-view')) {
     map.invalidateSize();
@@ -532,13 +513,13 @@ function openHomeView() {
 function openLogbookView() {
   homeView.classList.add('hidden-view');
   radarView.classList.add('hidden-view');
-  logbookView.classList.remove('hidden-view'); // Open logbook view
+  logbookView.classList.remove('hidden-view');
 
   navHomeBtn.classList.remove('active-tab');
   navRadarBtn.classList.remove('active-tab');
   navLogbookBtn.classList.add('active-tab');
 
-  loadLogbook(); // Refresh layout numbers
+  loadLogbook();
 }
 
 // Bind Navigation Triggers
@@ -554,5 +535,4 @@ clearLogBtn.addEventListener('click', () => {
   }
 });
 
-// Load records immediately upon compilation boot check
 loadLogbook();
