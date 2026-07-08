@@ -9,6 +9,7 @@ let timerInterval = null;
 let totalDuration = 0;
 let timeRemaining = 0;
 let map, planeMarker, flightPath;
+let turbulenceIncidents = 0; // Added tracker for anti-distraction penalties
 
 // Data logs
 let activeFlightState = {
@@ -31,10 +32,12 @@ const flightInput = document.getElementById('flight-input');
 const searchBtn = document.getElementById('search-btn');
 const startBtn = document.getElementById('start-btn');
 const abortBtn = document.getElementById('abort-btn');
-const timeLeftDisplay = document.getElementById('time-left');
 const statusDisplay = document.getElementById('flight-status');
 const statusDot = document.getElementById('status-dot');
 const sharePassBtn = document.getElementById('share-pass-btn');
+
+const timeLeftDisplay = document.getElementById('time-left');
+const turbulenceCounter = document.getElementById('turbulence-counter'); // Added selector
 
 // Logbook
 const navLogbookBtn = document.getElementById('nav-logbook-btn');
@@ -254,10 +257,38 @@ startBtn.addEventListener('click', () => {
   searchBtn.disabled = true;
   statusDisplay.innerText = "In Flight ✈️ Cockpit Isolation Active";
 
+  // Reset turbulence protocols for the new flight
+  turbulenceIncidents = 0;
+  turbulenceCounter.innerText = "⚠️ TURBULENCE STATUS: CLEAR";
+  turbulenceCounter.style.color = "#38bdf8";
+  turbulenceCounter.classList.remove('hidden');
+
   timerInterval = setInterval(() => {
     timeRemaining--;
     updateChronometerDisplay();
     updateSpatialTelemetry();
+
+    // --- NEW: IN-FLIGHT SERVICE MILESTONE CHECKER ---
+    const secondsElapsed = totalDuration - timeRemaining;
+
+    // 1800 seconds = 30 minutes. Check if elapsed time hits a 30-minute mark (and ensure it's not 0)
+    if (secondsElapsed > 0 && secondsElapsed % 1800 === 0) {
+      playCockpitChime();
+
+      // Flash a brief announcement text on the cockpit hud panel status bar
+      const originalStatusText = statusDisplay.innerText;
+      statusDisplay.innerText = "☕ IN-FLIGHT SERVICE: Time for a 2 minute stretch!";
+      statusDisplay.style.color = "#a7f3d0"; // Subtle green notice highlight
+
+      // Revert status text color back to normal after 2 minutes
+      setTimeout(() => {
+        if (timerInterval) { // Only revert if the flight hasn't ended or aborted
+          statusDisplay.innerText = originalStatusText;
+          statusDisplay.style.color = "";
+        }
+      }, 120000);
+    }
+    // ------------------------------------------------
 
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
@@ -294,6 +325,9 @@ function sessionTeardown(messageString) {
   boardingPassModal.classList.add('hidden');
   statusDisplay.innerText = messageString;
   statusDot.className = "status-dot";
+
+  // Hide turbulence UI when the session completes
+  turbulenceCounter.classList.add('hidden');
 }
 
 function updateChronometerDisplay() {
@@ -535,4 +569,69 @@ clearLogBtn.addEventListener('click', () => {
   }
 });
 
+// --- ANTI-DISTRACTION DETECTOR (TURBULENCE SYSTEM) ---
+document.addEventListener('visibilitychange', () => {
+  // Only monitor distraction states if a flight sequence is actively tracking
+  if (timerInterval && document.visibilityState === 'hidden') {
+    turbulenceIncidents++;
+
+    if (turbulenceIncidents >= 3) {
+      // Force immediate emergency landing sequence
+      appendAbortedFlightToLogbook();
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      if (flightPath) map.removeLayer(flightPath);
+      if (planeMarker) map.removeLayer(planeMarker);
+
+      alert("🚨 EMERGENCY LANDING: Flight aborted due to severe focus loss (left tab 3 times).");
+      sessionTeardown("Emergency Landing. Focus breached.");
+    } else {
+      // Non-fatal warning penalty incrementation
+      turbulenceCounter.innerText = `⚠️ TURBULENCE INCIDENT: ${turbulenceIncidents}/3`;
+      turbulenceCounter.style.color = "#f87171";
+      statusDisplay.innerText = `⚠️ Severe Turbulence Encountered! (${turbulenceIncidents}/3)`;
+    }
+  }
+});
+
 loadLogbook();
+
+// --- COCKPIT AUDIO NOTIFICATION SYNTHESIZER ---
+function playCockpitChime() {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    const ctx = new AudioContext();
+
+    // First high note (660Hz - E5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(660, ctx.currentTime);
+    gain1.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+
+    // Second harmony note played slightly delayed (554Hz - C#5)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(554, ctx.currentTime + 0.15);
+    gain2.gain.setValueAtTime(0.08, ctx.currentTime + 0.15);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+
+    // Fire the synthesizer engines
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.8);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 1.0);
+  } catch (e) {
+    console.log("AudioContext blocked or uninitialized:", e);
+  }
+}
