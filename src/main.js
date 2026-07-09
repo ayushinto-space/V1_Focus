@@ -292,6 +292,7 @@ startBtn.addEventListener('click', () => {
 
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
+      timerInterval = null;
       appendFlightToLogbook();
       sessionTeardown("Wheels Down. Welcome to your destination! 🎉");
     }
@@ -328,6 +329,17 @@ function sessionTeardown(messageString) {
 
   // Hide turbulence UI when the session completes
   turbulenceCounter.classList.add('hidden');
+
+  if (flightPath) {
+    map.removeLayer(flightPath);
+    flightPath = null;
+  }
+  if (planeMarker) {
+    map.removeLayer(planeMarker);
+    planeMarker = null;
+  }
+
+  groundTrackDisplay.innerText = "0.00%";
 }
 
 function updateChronometerDisplay() {
