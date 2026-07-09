@@ -127,6 +127,19 @@ searchBtn.addEventListener('click', async () => {
     passArr.innerText = activeFlightState.arr;
     passDuration.innerText = activeFlightState.durationText;
 
+    // --- CHOOSE A RANDOM CATCHY PILOT BROADCAST LINE ---
+    const catchyAviationLines = [
+      "✈️ CRUISE CONTROL: Comms isolated. Flight deck configured for hyper-focus.",
+      "🚀 RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude.",
+      "👨‍✈️ PILOT REMINDER: Adjust your seat back, enter deep work, and trust the automation.",
+      "🔋 DISPATCH BRIEFING: Zero distractions permitted until wheels touch the tarmac.",
+      "🌍 JETSTREAM NOTICE: Favorable clear skies ahead. Perfect window for clean output.",
+      "🛡️ AIRSPACE ISOLATION: Cabin doors sealed. Distraction shield actively armed."
+    ];
+    const randomCatchyLine = catchyAviationLines[Math.floor(Math.random() * catchyAviationLines.length)];
+    const bpBroadcastEl = document.getElementById('bp-catchy-broadcast');
+    if (bpBroadcastEl) bpBroadcastEl.innerText = randomCatchyLine;
+
     boardingPassModal.classList.remove('hidden');
     statusDisplay.innerText = "Boarding Complete. Clear for Departure.";
     statusDot.className = "status-dot active";
@@ -194,6 +207,19 @@ searchBtn.addEventListener('click', async () => {
       passDep.innerText = activeFlightState.dep;
       passArr.innerText = activeFlightState.arr;
       passDuration.innerText = activeFlightState.durationText;
+
+      // --- CHOOSE A RANDOM CATCHY PILOT BROADCAST LINE ---
+      const catchyAviationLines = [
+        "✈️ CRUISE CONTROL: Comms isolated. Flight deck configured for hyper-focus.",
+        "🚀 RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude.",
+        "👨‍✈️ PILOT REMINDER: Adjust your seat back, enter deep work, and trust the automation.",
+        "🔋 DISPATCH BRIEFING: Zero distractions permitted until wheels touch the tarmac.",
+        "🌍 JETSTREAM NOTICE: Favorable clear skies ahead. Perfect window for clean output.",
+        "🛡️ AIRSPACE ISOLATION: Cabin doors sealed. Distraction shield actively armed."
+      ];
+      const randomCatchyLine = catchyAviationLines[Math.floor(Math.random() * catchyAviationLines.length)];
+      const bpBroadcastEl = document.getElementById('bp-catchy-broadcast');
+      if (bpBroadcastEl) bpBroadcastEl.innerText = randomCatchyLine;
 
       boardingPassModal.classList.remove('hidden');
       statusDisplay.innerText = "Passenger Manifest Verified. Clear for Takeoff.";
@@ -411,67 +437,27 @@ volumeSlider.addEventListener('input', (e) => {
 });
 
 // SNAPSHOT ENGINE
+// SIMPLIFIED SNAPSHOT ENGINE (Saves Boarding Pass with Printed Catchy Message)
 sharePassBtn.addEventListener('click', async () => {
   const passElement = document.getElementById('boarding-pass');
   const closeBtn = document.querySelector('.modal-close-trigger');
-  
+
+  // Hide close cross button element so it doesn't render in your photo
   if (closeBtn) closeBtn.style.display = 'none';
 
-  // Generate the canvas element from the DOM nodes
+  // Snapshot the visual ticket canvas node
   const canvas = await html2canvas(passElement, {
     backgroundColor: '#0f131a',
-    scale: 2,
+    scale: 2, // High clarity crisp scaling multiplier
     logging: false
   });
 
+  // Put the close button back in place
   if (closeBtn) closeBtn.style.display = 'block';
 
-  // aviation PR text captions
-  const prTemplates = [
-    `📢 FLIGHT DISPATCH: Flight ${activeFlightState.flightNum} is officially cleared for departure. Routing ${activeFlightState.dep} ➔ ${activeFlightState.arr} for a ${activeFlightState.durationText} focus cruise. Wheels up! ✈️ #V1Focus #DeepWork`,
-    `👨‍✈️ FROM THE COCKPIT: Passenger manifest verified for flight ${activeFlightState.flightNum}. Gearing up to smash a ${activeFlightState.durationText} sprint from ${activeFlightState.dep} to ${activeFlightState.arr}. Comms isolated. 🚀 #Productivity`,
-    `⚡ RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude on flight ${activeFlightState.flightNum} (${activeFlightState.dep} to ${activeFlightState.arr}). Logging ${activeFlightState.durationText} of clean, deep work time. 🛠️ #FocusPilot`
-  ];
-  const randomPRText = prTemplates[Math.floor(Math.random() * prTemplates.length)];
-
-  // if the device supports native file sharing (Web Share API)
-  if (navigator.canShare && navigator.share) {
-    try {
-      // Convert the canvas capture directly into a shareable Blob image file array
-      canvas.toBlob(async (blob) => {
-        const imageFile = new File([blob], `focus-flight-${activeFlightState.flightNum}.png`, { type: 'image/png' });
-        
-        // Push the image asset and text caption together right into the OS share sheet pipeline
-        await navigator.share({
-          files: [imageFile],
-          title: `Flight Manifest ${activeFlightState.flightNum}`,
-          text: randomPRText
-        });
-      }, 'image/png');
-      
-      return; // Handled cleanly via the OS native interface
-    } catch (err) {
-      console.log("Native share cancelled or failed:", err);
-    }
-  }
-
-  // FALLBACK
-  try {
-    await navigator.clipboard.writeText(randomPRText);
-    const originalBtnText = sharePassBtn.innerHTML;
-    sharePassBtn.innerHTML = "📋 <span>Pass Saved & PR Copied!</span>";
-    sharePassBtn.style.borderColor = "#34d399";
-    
-    setTimeout(() => {
-      sharePassBtn.innerHTML = originalBtnText;
-      sharePassBtn.style.borderColor = "";
-    }, 3000);
-  } catch (err) {
-    console.error("Clipboard failure:", err);
-  }
-
+  // Trigger the standard graphic download directly
   const link = document.createElement('a');
-  link.download = `focus-flight-${activeFlightState.flightNum}.png`;
+  link.download = `focus-flight-${activeFlightState.flightNum || 'TICKET'}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 });

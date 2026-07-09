@@ -16,7 +16,7 @@
   <nav class="global-navbar">
     <div class="nav-brand">✈️ V1 Focus</div>
     <div class="nav-actions">
-      <button id="nav-home-btn" class="nav-tab active-tab" type="button">Dashboard Home</button>
+      <button id="nav-home-btn" class="nav-tab active-tab" type="button">Dashboard</button>
       <button id="nav-radar-btn" class="nav-tab" type="button">Flight Control</button>
       <button id="nav-logbook-btn" class="nav-tab" type="button">Pilot Logbook</button>
     </div>
@@ -233,6 +233,13 @@
           </div>
           <div class="metric-item alignment-right">
             <span class="meta-label">GATE STATUS</span>
+            <div
+              style="margin: 8px 0; padding: 6px 10px; background: rgba(255,255,255,0.03); border-left: 2px solid #38bdf8; border-radius: 4px;">
+              <p id="bp-catchy-broadcast"
+                style="font-size: 0.7rem; color: #94a3b8; font-style: italic; margin: 0; line-height: 1.3; font-family: 'JetBrains Mono', monospace;">
+                Preparing cockpit configurations...
+              </p>
+            </div>
             <div class="status-action-row" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
               <span class="badge-status-green" style="margin-top: 0;">BOARDING READY</span>
               <button id="share-pass-btn" type="button" title="Download Ticket Snapshot"
