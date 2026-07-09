@@ -257,6 +257,9 @@ startBtn.addEventListener('click', () => {
   searchBtn.disabled = true;
   statusDisplay.innerText = "In Flight ✈️ Cockpit Isolation Active";
 
+  // Trigger Departure Announcement immediately upon takeoff
+  speakCaptainAnnouncement('departure');
+
   // Reset turbulence protocols for the new flight
   turbulenceIncidents = 0;
   turbulenceCounter.innerText = "⚠️ TURBULENCE STATUS: CLEAR";
@@ -267,6 +270,18 @@ startBtn.addEventListener('click', () => {
     timeRemaining--;
     updateChronometerDisplay();
     updateSpatialTelemetry();
+
+    // --- SMART IN-FLIGHT ARRIVAL ANNOUNCEMENT LOGIC ---
+    let arrivalThresholdSeconds = 10 * 60; // Default: 10 minutes remaining
+
+    if (totalDuration <= 15 * 60) {
+      // Short flight safety fallback: Trigger exactly at the halfway mark
+      arrivalThresholdSeconds = Math.floor(totalDuration / 2);
+    }
+
+    if (timeRemaining === arrivalThresholdSeconds) {
+      speakCaptainAnnouncement('descent');
+    }
 
     // --- NEW: IN-FLIGHT SERVICE MILESTONE CHECKER ---
     const secondsElapsed = totalDuration - timeRemaining;
@@ -293,6 +308,7 @@ startBtn.addEventListener('click', () => {
     if (timeRemaining <= 0) {
       clearInterval(timerInterval);
       timerInterval = null;
+      speakCaptainAnnouncement('touchdown');
       appendFlightToLogbook();
       sessionTeardown("Wheels Down. Welcome to your destination! 🎉");
     }
@@ -301,6 +317,11 @@ startBtn.addEventListener('click', () => {
 
 // ABORT OPERATIONS
 abortBtn.addEventListener('click', () => {
+
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+
   // FIXED: Aborted log executes first using memory cache safely before DOM layouts get cleared out
   appendAbortedFlightToLogbook();
 
@@ -393,18 +414,64 @@ volumeSlider.addEventListener('input', (e) => {
 sharePassBtn.addEventListener('click', async () => {
   const passElement = document.getElementById('boarding-pass');
   const closeBtn = document.querySelector('.modal-close-trigger');
-  closeBtn.style.display = 'none';
+  
+  if (closeBtn) closeBtn.style.display = 'none';
 
+  // Generate the canvas element from the DOM nodes
   const canvas = await html2canvas(passElement, {
     backgroundColor: '#0f131a',
     scale: 2,
     logging: false
   });
 
-  closeBtn.style.display = 'block';
+  if (closeBtn) closeBtn.style.display = 'block';
+
+  // aviation PR text captions
+  const prTemplates = [
+    `📢 FLIGHT DISPATCH: Flight ${activeFlightState.flightNum} is officially cleared for departure. Routing ${activeFlightState.dep} ➔ ${activeFlightState.arr} for a ${activeFlightState.durationText} focus cruise. Wheels up! ✈️ #V1Focus #DeepWork`,
+    `👨‍✈️ FROM THE COCKPIT: Passenger manifest verified for flight ${activeFlightState.flightNum}. Gearing up to smash a ${activeFlightState.durationText} sprint from ${activeFlightState.dep} to ${activeFlightState.arr}. Comms isolated. 🚀 #Productivity`,
+    `⚡ RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude on flight ${activeFlightState.flightNum} (${activeFlightState.dep} to ${activeFlightState.arr}). Logging ${activeFlightState.durationText} of clean, deep work time. 🛠️ #FocusPilot`
+  ];
+  const randomPRText = prTemplates[Math.floor(Math.random() * prTemplates.length)];
+
+  // if the device supports native file sharing (Web Share API)
+  if (navigator.canShare && navigator.share) {
+    try {
+      // Convert the canvas capture directly into a shareable Blob image file array
+      canvas.toBlob(async (blob) => {
+        const imageFile = new File([blob], `focus-flight-${activeFlightState.flightNum}.png`, { type: 'image/png' });
+        
+        // Push the image asset and text caption together right into the OS share sheet pipeline
+        await navigator.share({
+          files: [imageFile],
+          title: `Flight Manifest ${activeFlightState.flightNum}`,
+          text: randomPRText
+        });
+      }, 'image/png');
+      
+      return; // Handled cleanly via the OS native interface
+    } catch (err) {
+      console.log("Native share cancelled or failed:", err);
+    }
+  }
+
+  // FALLBACK
+  try {
+    await navigator.clipboard.writeText(randomPRText);
+    const originalBtnText = sharePassBtn.innerHTML;
+    sharePassBtn.innerHTML = "📋 <span>Pass Saved & PR Copied!</span>";
+    sharePassBtn.style.borderColor = "#34d399";
+    
+    setTimeout(() => {
+      sharePassBtn.innerHTML = originalBtnText;
+      sharePassBtn.style.borderColor = "";
+    }, 3000);
+  } catch (err) {
+    console.error("Clipboard failure:", err);
+  }
 
   const link = document.createElement('a');
-  link.download = 'focus-flight-pass.png';
+  link.download = `focus-flight-${activeFlightState.flightNum}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
 });
@@ -588,6 +655,9 @@ document.addEventListener('visibilitychange', () => {
     turbulenceIncidents++;
 
     if (turbulenceIncidents >= 3) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
       // Force immediate emergency landing sequence
       appendAbortedFlightToLogbook();
       if (timerInterval) {
@@ -611,6 +681,57 @@ document.addEventListener('visibilitychange', () => {
 loadLogbook();
 
 // --- COCKPIT AUDIO NOTIFICATION SYNTHESIZER ---
+// --- PILOT ANNOUNCEMENT AUDIO ENGINE (TTS) ---
+function speakCaptainAnnouncement(messageType, customData = {}) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+
+    // 1. Play a quick radio chime right before speaking to simulate the PA system turning on
+    playCockpitChime();
+
+    // 2. Map standard triggers to highly realistic, immersion-rich aviation scripts
+    let radioScript = "";
+    switch (messageType) {
+      case 'departure':
+        radioScript = "Uh, good day folks, from the flight deck. This is your Captain speaking. Flight controls are configured, and we are, uh, next in sequence for departure. Cabin crew, please ensure all doors are closed and prepare for takeoff. Sit back, relax, and enjoy the cruise.";
+        break;
+      case 'descent':
+        radioScript = "Flight deck here, once again, folks. Just giving you a quick update from the front. We have initiated our top of descent out of our cruise altitude. Weather looks excellent at our terminal. Cabin crew, prepare the cabin for arrival.";
+        break;
+      case 'touchdown':
+        radioScript = "Wheels down, folks. Welcome to your destination. We know you have a choice in focus engines, and we appreciate you flying V1 Focus today. Cabin crew, disarm slides and open doors.";
+        break;
+      default:
+        radioScript = messageType; // Fallback for custom strings
+    }
+
+    // 3. Configure the TTS voice mechanics to sound deep, steady, and slightly radio-filtered
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(radioScript);
+      const voices = window.speechSynthesis.getVoices();
+
+      // Look for professional or regional accents to give it character
+      const preferredVoice = voices.find(v =>
+        v.name.includes('Natural') ||
+        v.name.includes('Google US English') ||
+        v.name.includes('Daniel') ||
+        v.lang === 'en-US'
+      );
+
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.rate = 0.82;   // Significantly slower tempo to match standard airline announcements
+      utterance.pitch = 0.80;  // Deepened pitch to give that classic rumble authority over the speakers
+
+      window.speechSynthesis.speak(utterance);
+    }, 400); // 400ms delay gives the cockpit chime room to breathe before speaking
+
+  } catch (e) {
+    console.error("Captain's announcement system failure:", e);
+  }
+}
+
 function playCockpitChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
