@@ -1,3 +1,4 @@
+/* CORE DESIGN VARIABLES & GLOBAL RESET */
 :root {
   --bg-dark: #080a0f;
   --panel-bg: #0f131a;
@@ -21,13 +22,16 @@ body {
   height: 100vh;
 }
 
+/* Master Layout Framework Container */
 #app {
   display: flex;
   width: 100vw;
   height: 100vh;
+  padding-top: 64px;
+  /* Shifting layout down under the structural fixed global navbar */
 }
 
-/* CONTROL DASHBOARD */
+/* COCKPIT SIDE PANEL CONTROL DASHBOARD */
 .control-panel {
   width: 380px;
   min-width: 380px;
@@ -62,7 +66,7 @@ h3 {
   margin-bottom: 16px;
 }
 
-/* Field Configurations */
+/* INTERACTIVE FORM FIELDS, BUTTONS & ACTIONS */
 .input-group {
   display: flex;
   flex-direction: column;
@@ -122,65 +126,7 @@ button {
   line-height: 1.4;
 }
 
-/* Status Nodes */
-.status-box {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-color);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: var(--text-muted);
-}
-
-.status-dot.searching {
-  background-color: #eab308;
-  animation: pulse 1.5s infinite;
-}
-
-.status-dot.active {
-  background-color: #22c55e;
-  box-shadow: 0 0 10px #22c55e;
-}
-
-#flight-status {
-  font-size: 0.8rem;
-  color: #cbd5e1;
-}
-
-/* Chronometer Displays */
-.chronometer-section {
-  text-align: center;
-  background: rgba(0, 0, 0, 0.15);
-  padding: 24px;
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-}
-
-#time-left {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 2.5rem;
-  font-weight: 700;
-  letter-spacing: -1px;
-}
-
-.lbl-sub {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  display: block;
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
+/* Core Interface Execution Controls */
 .action-row {
   margin-top: 20px;
 }
@@ -217,7 +163,7 @@ button {
   display: none !important;
 }
 
-/* Volume Engine Styles */
+/* Volume Context Engine Controls */
 .volume-control {
   display: flex;
   flex-direction: column;
@@ -236,7 +182,80 @@ input[type="range"] {
   accent-color: var(--accent-color);
 }
 
-/* MAP RADAR */
+/* SYSTEM RADAR AND TELEMETRY NOTIFICATION NODES */
+.status-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
+.status-dot.searching {
+  background-color: #eab308;
+  animation: pulse 1.5s infinite;
+}
+
+.status-dot.active {
+  background-color: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+}
+
+#flight-status {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+
+/* Spatial Dashboard Chronometer Components */
+.chronometer-section {
+  text-align: center;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+}
+
+#time-left {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.lbl-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.4;
+  }
+}
+
+/* GEOSPATIAL MAP RADAR ENVIRONMENT */
 .radar-viewport {
   flex-grow: 1;
   position: relative;
@@ -249,6 +268,11 @@ input[type="range"] {
   background: var(--bg-dark);
 }
 
+.leaflet-container {
+  background-color: var(--bg-dark) !important;
+}
+
+/* Spatial Telemetry Tracking Overlay Badge */
 .telemetry-overlay-badge {
   position: absolute;
   top: 24px;
@@ -277,7 +301,30 @@ input[type="range"] {
   color: var(--accent-color);
 }
 
-/* MODAL BACKDROP CONTROLS */
+/* Leaflet Custom Div Marker Vectors (The Interactive Jet Node) */
+.custom-plane-div-node {
+  background: transparent !important;
+  border: none !important;
+}
+
+.radar-jet-wrapper {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Hardware accelerated flight rotation path shifts */
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+}
+
+.radar-jet-svg {
+  width: 32px;
+  height: 32px;
+  transform: rotate(0deg);
+}
+
+/* MODAL BACKDROP SYSTEMS */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -298,20 +345,34 @@ input[type="range"] {
   pointer-events: none;
 }
 
-/* BOARDING PASS */
+.modal-close-trigger {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.modal-close-trigger:hover {
+  color: #fff;
+}
+
+/* BOARDING PASS DESIGN ENGINE */
 .boarding-pass-card {
   background: #0f131a;
   border-radius: 32px;
-  /* Increased for a more modern 'mobile app' look */
+  /* Smooth card layout geometry configuration */
   padding: 24px;
   width: 320px;
-  /* THIS IS THE KEY: Forces children to respect the rounded corners */
   overflow: hidden;
+  /* Encapsulates the child structures cleanly within the rounded matrix */
   border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
 }
 
-/* Ensure the header block doesn't bleed out over the corners */
 .pass-header {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 20px;
@@ -383,7 +444,7 @@ input[type="range"] {
   align-items: flex-end;
 }
 
-/* Vector Visual Trajectories Row */
+/* Core Visual Route Vector Trajectories Bar */
 .pass-route-vector {
   display: flex;
   justify-content: space-between;
@@ -455,7 +516,7 @@ input[type="range"] {
   display: inline-block;
 }
 
-/* Ticket Perforations */
+/* Ticket Counterfoil Structural Perforations */
 .ticket-perforation {
   position: relative;
   height: 2px;
@@ -480,7 +541,7 @@ input[type="range"] {
   right: -20px;
 }
 
-/* Stub Layout */
+/* Boarding Pass Safety Stub Panel Layout */
 .pass-stub {
   padding: 20px 24px 24px;
   background: rgba(0, 0, 0, 0.05);
@@ -521,64 +582,7 @@ input[type="range"] {
   width: 5px;
 }
 
-.modal-close-trigger {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.modal-close-trigger:hover {
-  color: #fff;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 0.4;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.4;
-  }
-}
-
-/* Theme Correction */
-.leaflet-container {
-  background-color: var(--bg-dark) !important;
-}
-
-/* RADAR AIRPLANE MARKER */
-.custom-plane-div-node {
-  background: transparent !important;
-  border: none !important;
-}
-
-.radar-jet-wrapper {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Hardware accelerated rotation transition */
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
-}
-
-.radar-jet-svg {
-  width: 32px;
-  height: 32px;
-  transform: rotate(0deg);
-}
-
-/* --- GLOBAL NAVIGATION BAR STYLES --- */
+/* APPLICATION GLOBAL NAVBAR ARCHITECTURE */
 .global-navbar {
   height: 64px;
   background: #0f131a;
@@ -628,15 +632,7 @@ input[type="range"] {
   border: 1px solid rgba(56, 189, 248, 0.15);
 }
 
-/* Base adjustment for global app container shifting under navbar */
-#app {
-  padding-top: 64px;
-  height: 100vh;
-  width: 100vw;
-  display: flex;
-}
-
-/* --- VIEW CONTROL ARCHITECTURES --- */
+/* VIEW CONTROL AND SCREEN STATE FRAMEWORKS */
 .view-container {
   width: 100%;
   height: 100%;
@@ -644,6 +640,11 @@ input[type="range"] {
   transition: opacity 0.25s ease;
 }
 
+.hidden-view {
+  display: none !important;
+}
+
+/* HOME VIEW MATRICES */
 #home-view {
   flex-direction: column;
   padding: 60px max(40px, 8vw);
@@ -651,11 +652,6 @@ input[type="range"] {
   background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.03), transparent 60%), #080a0f;
 }
 
-.hidden-view {
-  display: none !important;
-}
-
-/* --- HOME PAGE CONTENT MATRIX COMPONENTS --- */
 .hero-header-block {
   max-width: 800px;
   margin-bottom: 54px;
@@ -678,7 +674,7 @@ input[type="range"] {
   line-height: 1.6;
 }
 
-/* Modern Grid Options */
+/* Core Layout Systems Strategy Modules */
 .benefits-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -719,7 +715,7 @@ input[type="range"] {
   line-height: 1.6;
 }
 
-/* Call to Action layout components */
+/* Interactive Direct Execution Banner Callouts */
 .quick-start-banner {
   background: linear-gradient(90deg, rgba(15, 19, 26, 0.8), #0f131a);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -760,79 +756,7 @@ input[type="range"] {
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
 }
 
-/* ==========================================================================
-   MOBILE & RESPONSIVE BREAKPOINT (768px and below)
-   ========================================================================== */
-@media (max-width: 768px) {
-  body {
-    overflow-y: auto !important;
-    height: auto !important;
-  }
-
-  #app {
-    flex-direction: column !important;
-    height: auto !important;
-    min-height: calc(100vh - 64px);
-    width: 100vw;
-  }
-
-  .global-navbar {
-    padding: 12px 16px;
-    flex-direction: column;
-    gap: 12px;
-    height: auto;
-    text-align: center;
-  }
-
-  .nav-actions {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .nav-tab {
-    flex: 1;
-    text-align: center;
-    padding: 8px 12px;
-  }
-
-  .view-container {
-    padding: 24px 16px !important;
-    height: auto !important;
-  }
-
-  .control-panel {
-    width: 100% !important;
-    min-width: 100% !important;
-    height: auto !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--border-color);
-    padding: 24px 16px !important;
-    gap: 24px !important;
-  }
-
-  #radar-view {
-    flex-direction: column !important;
-    height: auto !important;
-  }
-
-  .radar-viewport {
-    width: 100% !important;
-    height: 55vh !important;
-    min-height: 380px !important;
-    position: relative !important;
-    order: 2;
-  }
-
-  /* Fixed from .ground-track-hud to your actual HTML class target */
-  .telemetry-overlay-badge {
-    top: 16px !important;
-    right: 16px !important;
-  }
-}
-
-/* --- AVIATION FLIGHT LOGBOOK LAYOUTS --- */
+/* AVIATION LOGBOOK SYSTEMS LAYOUT */
 #logbook-view {
   flex-direction: column;
   padding: max(40px, 4vw) max(40px, 6vw);
@@ -876,6 +800,7 @@ input[type="range"] {
   background: rgba(239, 68, 68, 0.15);
 }
 
+/* Tabular Manifest Record Elements Container Matrices */
 .logbook-table-container {
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -946,7 +871,7 @@ input[type="range"] {
   opacity: 0.4;
 }
 
-/* --- BLACKBOX TELEMETRY ARCHIVE INSTRUMENTS --- */
+/* BLACKBOX ANALYTICS METRICS INSTRUMENTS */
 .blackbox-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1003,9 +928,78 @@ input[type="range"] {
   font-weight: 500;
 }
 
+/* RESPONSIVE MEDIA QUERIES BREAKPOINTS */
 @media (max-width: 850px) {
   .steps-container {
     grid-template-columns: 1fr !important;
     gap: 24px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  #app {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: calc(100vh - 64px);
+    width: 100vw;
+  }
+
+  .global-navbar {
+    padding: 12px 16px;
+    flex-direction: column;
+    gap: 12px;
+    height: auto;
+    text-align: center;
+  }
+
+  .nav-actions {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .nav-tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 12px;
+  }
+
+  .view-container {
+    padding: 24px 16px !important;
+    height: auto !important;
+  }
+
+  .control-panel {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color);
+    padding: 24px 16px !important;
+    gap: 24px !important;
+  }
+
+  #radar-view {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+
+  .radar-viewport {
+    width: 100% !important;
+    height: 55vh !important;
+    min-height: 380px !important;
+    position: relative !important;
+    order: 2;
+  }
+
+  .telemetry-overlay-badge {
+    top: 16px !important;
+    right: 16px !important;
   }
 }
