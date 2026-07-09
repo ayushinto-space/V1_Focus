@@ -4,15 +4,14 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import html2canvas from 'html2canvas';
 
-// --- STATE CONFIGURATIONS ---
+// STATE MACHINE CONFIGS
 let timerInterval = null;
 let totalDuration = 0;
 let timeRemaining = 0;
-let map = null;
-let planeMarker = null;
-let flightPath = null;
-let turbulenceIncidents = 0;
+let map, planeMarker, flightPath;
+let turbulenceIncidents = 0; // Added tracker for anti-distraction penalties
 
+// Data logs
 let activeFlightState = {
   flightNum: 'POMO',
   dep: 'BOM',
@@ -23,472 +22,702 @@ let activeFlightState = {
 
 const API_KEY = import.meta.env.VITE_AIRLABS_API_KEY;
 
-// --- DOM SELECTORS ---
+// DOM SELECTORS
 const navHomeBtn = document.getElementById('nav-home-btn');
 const navRadarBtn = document.getElementById('nav-radar-btn');
-const navLogbookBtn = document.getElementById('nav-logbook-btn');
 const ctaRadarBtn = document.getElementById('cta-radar-btn');
-
 const homeView = document.getElementById('home-view');
 const radarView = document.getElementById('radar-view');
-const logbookView = document.getElementById('logbook-view');
-
 const flightInput = document.getElementById('flight-input');
 const searchBtn = document.getElementById('search-btn');
 const startBtn = document.getElementById('start-btn');
 const abortBtn = document.getElementById('abort-btn');
 const statusDisplay = document.getElementById('flight-status');
 const statusDot = document.getElementById('status-dot');
+const sharePassBtn = document.getElementById('share-pass-btn');
 
 const timeLeftDisplay = document.getElementById('time-left');
-const turbulenceCounter = document.getElementById('turbulence-counter');
+const turbulenceCounter = document.getElementById('turbulence-counter'); // Added selector
 
-// Environment & Audio Elements
-const volumeInput = document.getElementById('volume');
-const volumePct = document.getElementById('volume-pct');
-const cabinNoise = document.getElementById('cabin-noise');
-
-// Boarding Pass Modal Elements
-const boardingPassModal = document.getElementById('boarding-pass-modal');
-const closePassBtn = document.getElementById('close-pass-btn');
-const sharePassBtn = document.getElementById('share-pass-btn');
-const passFlightNum = document.getElementById('pass-flight-num');
-const passDep = document.getElementById('pass-dep');
-const passArr = document.getElementById('pass-arr');
-const passDuration = document.getElementById('pass-duration');
-const bpCatchyBroadcast = document.getElementById('bp-catchy-broadcast');
-
-// Logbook Registry Elements
+// Logbook
+const navLogbookBtn = document.getElementById('nav-logbook-btn');
+const logbookView = document.getElementById('logbook-view');
 const logbookRows = document.getElementById('logbook-rows');
 const logbookEmpty = document.getElementById('logbook-empty');
 const clearLogBtn = document.getElementById('clear-log-btn');
+
+// Statistics  
 const statTotalAirtime = document.getElementById('stat-total-airtime');
 const statOtp = document.getElementById('stat-otp');
 const statLongestSector = document.getElementById('stat-longest-sector');
 
-// --- APP ARCHITECTURE NAVIGATION TRIPS ---
-function switchView(target) {
-  homeView.classList.add('hidden-view');
-  radarView.classList.add('hidden-view');
-  logbookView.classList.add('hidden-view');
+// Popup Modal DOM Elements
+const boardingPassModal = document.getElementById('boarding-pass-modal');
+const closePassBtn = document.getElementById('close-pass-btn');
 
-  navHomeBtn.classList.remove('active-tab');
-  navRadarBtn.classList.remove('active-tab');
-  if (navLogbookBtn) navLogbookBtn.classList.remove('active-tab');
+const passFlightNum = document.getElementById('pass-flight-num');
+const passDep = document.getElementById('pass-dep');
+const passArr = document.getElementById('pass-arr');
+const passDuration = document.getElementById('pass-duration');
+const groundTrackDisplay = document.getElementById('map-stat-track');
+const cabinNoise = document.getElementById('cabin-noise');
+const volumeSlider = document.getElementById('volume');
+const volumePct = document.getElementById('volume-pct');
 
-  if (target === 'home') {
-    homeView.classList.remove('hidden-view');
-    navHomeBtn.classList.add('active-tab');
-  } else if (target === 'radar') {
-    radarView.classList.remove('hidden-view');
-    navRadarBtn.classList.add('active-tab');
-    initializeRadarMap();
-  } else if (target === 'logbook') {
-    logbookView.classList.remove('hidden-view');
-    if (navLogbookBtn) navLogbookBtn.add('active-tab');
-    renderLogbookManifest();
-  }
+// INITIALIZE RADAR ENVIRONMENT
+function initMap() {
+  map = L.map('map', { zoomControl: false }).setView([22.0, 78.0], 5);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }).addTo(map);
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
 }
 
-navHomeBtn.addEventListener('click', () => switchView('home'));
-navRadarBtn.addEventListener('click', () => switchView('radar'));
-if (navLogbookBtn) navLogbookBtn.addEventListener('click', () => switchView('logbook'));
-if (ctaRadarBtn) ctaRadarBtn.addEventListener('click', () => switchView('radar'));
+// MATHEMATICAL DIRECTION ANGLES (HEADING CALCULATIONS)
+function calculateBearing(startLat, startLng, endLat, endLng) {
+  const dLng = (endLng - startLng) * Math.PI / 180;
+  const lat1 = startLat * Math.PI / 180;
+  const lat2 = endLat * Math.PI / 180;
 
-// --- AUDIO MIXER CONSOLE CONTROLS ---
-volumeInput.addEventListener('input', (e) => {
-  const value = parseFloat(e.target.value);
-  cabinNoise.volume = value;
-  volumePct.textContent = `${Math.round(value * 100)}%`;
+  const y = Math.sin(dLng) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
 
-  if (value > 0 && cabinNoise.paused) {
-    cabinNoise.play().catch(err => console.log("Audio activation context deferred:", err));
-  } else if (value === 0 && !cabinNoise.paused) {
-    cabinNoise.pause();
-  }
-});
+  let bearing = Math.atan2(y, x) * 180 / Math.PI;
+  return (bearing + 360) % 360;
+}
 
-// --- TELEMETRY FLIGHT TRACK ROUTING ENGINE ---
+// GLOBAL SEARCH ROUTING (API vs SANDBOX)
 searchBtn.addEventListener('click', async () => {
-  const code = flightInput.value.trim().toUpperCase();
-  if (!code) return;
+  const flightNum = flightInput.value.trim().toUpperCase();
+  if (!flightNum) return alert('Enter a validation vector.');
 
-  searchBtn.disabled = true;
-  statusDot.className = 'status-dot searching';
-  statusDisplay.textContent = `Pinging satellite transponders for vector route: ${code}...`;
+  statusDisplay.innerText = "Scanning radar feeds...";
+  statusDot.className = "status-dot searching";
+  boardingPassModal.classList.add('hidden');
+  startBtn.disabled = true;
 
-  // Check Sandbox Presets
-  if (['HOP', 'CRUISE', 'LONG HAUL'].includes(code) || code === 'MINI') {
-    setTimeout(() => {
-      let mins = 45;
-      if (code === 'MINI') mins = 1;
-      else if (code === 'HOP') mins = 90;
-      else if (code === 'CRUISE') mins = 120;
-      else if (code === 'LONG HAUL') mins = 180;
+  // DEV MODE SANDBOX INTERCEPTOR
+  if (['HOP', 'CRUISE', 'LONG HAUL'].includes(flightNum)) {
+    let mockSecs = 5400;
+    let depCode = "BOM", arrCode = "GOA";
+    let startPos = [19.0896, 72.8656], endPos = [15.7322, 73.8680];
 
-      setupFlightParameters(code, 'SAN', 'BOX', mins, "Simulation preset sandbox environment active.");
-    }, 1200);
+    if (flightNum === 'CRUISE') {
+      mockSecs = 7200; depCode = "BOM"; arrCode = "DEL";
+      startPos = [19.0896, 72.8656]; endPos = [28.5561, 77.1002];
+    } else if (flightNum === 'LONG HAUL') {
+      mockSecs = 10800; depCode = "BOM"; arrCode = "CCU";
+      startPos = [19.0896, 72.8656], endPos = [22.6547, 88.4467];
+    }
+
+    totalDuration = mockSecs;
+    timeRemaining = totalDuration;
+
+    // Save strictly to clean variable memory track instead of lazy DOM scraping patterns
+    activeFlightState = {
+      flightNum: flightNum,
+      dep: depCode,
+      arr: arrCode,
+      seat: "1A",
+      durationText: `${Math.round(mockSecs / 60)}m`
+    };
+
+    passFlightNum.innerText = activeFlightState.flightNum;
+    passDep.innerText = activeFlightState.dep;
+    passArr.innerText = activeFlightState.arr;
+    passDuration.innerText = activeFlightState.durationText;
+
+    // --- CHOOSE A RANDOM CATCHY PILOT BROADCAST LINE ---
+    const catchyAviationLines = [
+      "✈️ CRUISE CONTROL: Comms isolated. Flight deck configured for hyper-focus.",
+      "🚀 RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude.",
+      "👨‍✈️ PILOT REMINDER: Adjust your seat back, enter deep work, and trust the automation.",
+      "🔋 DISPATCH BRIEFING: Zero distractions permitted until wheels touch the tarmac.",
+      "🌍 JETSTREAM NOTICE: Favorable clear skies ahead. Perfect window for clean output.",
+      "🛡️ AIRSPACE ISOLATION: Cabin doors sealed. Distraction shield actively armed."
+    ];
+    const randomCatchyLine = catchyAviationLines[Math.floor(Math.random() * catchyAviationLines.length)];
+    const bpBroadcastEl = document.getElementById('bp-catchy-broadcast');
+    if (bpBroadcastEl) bpBroadcastEl.innerText = randomCatchyLine;
+
+    boardingPassModal.classList.remove('hidden');
+    statusDisplay.innerText = "Boarding Complete. Clear for Departure.";
+    statusDot.className = "status-dot active";
+    startBtn.disabled = false;
+
+    setupFlightVisuals(startPos, endPos);
     return;
   }
 
-  // Handle Live Aviation API Fetch Route
+  // LIVE TELEMETRY API VECTOR
   try {
-    const response = await fetch(`https://airlabs.co/api/v9/flight?flight_iata=${code}&api_key=${API_KEY}`);
-    const data = await response.json();
+    if (!API_KEY) {
+      statusDisplay.innerText = "Configuration Error: API Key missing in environment.";
+      statusDot.className = "status-dot";
+      return;
+    }
 
-    if (data.error || !data.response) {
-      fallbackToSimulatedRoute(code, "Live route untracked. Instantiating synthetic transponder vector.");
+    statusDisplay.innerText = "Tracking active live transponder coordinates...";
+    const radarResponse = await fetch(`https://airlabs.co/api/v9/flights?api_key=${API_KEY}&flight_iata=${flightNum}`);
+    const radarData = await radarResponse.json();
+
+    if (radarData.response && radarData.response.length > 0) {
+      const flight = radarData.response[0];
+      const startPos = [flight.lat, flight.lng];
+      const destinationAirport = flight.arr_iata;
+
+      if (!destinationAirport) {
+        statusDisplay.innerText = "Active flight found but, destination registry is unlisted.";
+        statusDot.className = "status-dot";
+        return;
+      }
+
+      statusDisplay.innerText = `Resolving terminal coordinates for ${destinationAirport}...`;
+      const airportResponse = await fetch(`https://airlabs.co/api/v9/airports?api_key=${API_KEY}&iata_code=${destinationAirport}`);
+      const airportData = await airportResponse.json();
+
+      if (!airportData.response || airportData.response.length === 0) {
+        statusDisplay.innerText = `Unable to verify terminal mapping for airport: ${destinationAirport}`;
+        statusDot.className = "status-dot";
+        return;
+      }
+
+      const airportInfo = airportData.response[0];
+      const endPos = [parseFloat(airportInfo.lat), parseFloat(airportInfo.lng)];
+
+      // OPTIMIZATION: Replacing tedious high-compute Haversine formula with native Leaflet engine methods
+      const distanceKm = L.latLng(startPos).distanceTo(L.latLng(endPos)) / 1000;
+
+      const liveSpeedKmh = flight.speed && flight.speed > 50 ? Math.round(flight.speed) : 850;
+      const hoursRemaining = distanceKm / liveSpeedKmh;
+      totalDuration = Math.round(hoursRemaining * 3600);
+
+      if (totalDuration <= 0) totalDuration = 60;
+      timeRemaining = totalDuration;
+
+      activeFlightState = {
+        flightNum: flightNum,
+        dep: flight.dep_iata || "???",
+        arr: destinationAirport,
+        seat: "1A",
+        durationText: `${Math.round(totalDuration / 60)}m`
+      };
+
+      passFlightNum.innerText = activeFlightState.flightNum;
+      passDep.innerText = activeFlightState.dep;
+      passArr.innerText = activeFlightState.arr;
+      passDuration.innerText = activeFlightState.durationText;
+
+      // --- CHOOSE A RANDOM CATCHY PILOT BROADCAST LINE ---
+      const catchyAviationLines = [
+        "✈️ CRUISE CONTROL: Comms isolated. Flight deck configured for hyper-focus.",
+        "🚀 RADAR NOTICE: Lock-in sequence initiated. Climbing to cruise altitude.",
+        "👨‍✈️ PILOT REMINDER: Adjust your seat back, enter deep work, and trust the automation.",
+        "🔋 DISPATCH BRIEFING: Zero distractions permitted until wheels touch the tarmac.",
+        "🌍 JETSTREAM NOTICE: Favorable clear skies ahead. Perfect window for clean output.",
+        "🛡️ AIRSPACE ISOLATION: Cabin doors sealed. Distraction shield actively armed."
+      ];
+      const randomCatchyLine = catchyAviationLines[Math.floor(Math.random() * catchyAviationLines.length)];
+      const bpBroadcastEl = document.getElementById('bp-catchy-broadcast');
+      if (bpBroadcastEl) bpBroadcastEl.innerText = randomCatchyLine;
+
+      boardingPassModal.classList.remove('hidden');
+      statusDisplay.innerText = "Passenger Manifest Verified. Clear for Takeoff.";
+      statusDot.className = "status-dot active";
+      startBtn.disabled = false;
+
+      setupFlightVisuals(startPos, endPos);
     } else {
-      const flight = data.response;
-      const depCode = flight.dep_iata || 'DEP';
-      const arrCode = flight.arr_iata || 'ARR';
-      const durationMins = flight.duration || 75;
-
-      setupFlightParameters(code, depCode, arrCode, durationMins, `Radar connection established with active flight ${code}.`);
+      statusDisplay.innerText = "Flight is currently offline or at the gate.";
+      statusDot.className = "status-dot";
     }
   } catch (err) {
-    console.error("Satellite transmission error:", err);
-    fallbackToSimulatedRoute(code, "Network grid timeout. Initializing backup simulation vector.");
+    console.error("Critical Network Error Loop:", err);
+    statusDisplay.innerText = "Transmission error. Check terminal console logs.";
+    statusDot.className = "status-dot";
   }
 });
 
-function fallbackToSimulatedRoute(code, statusMessage) {
-  const mockHubs = ['LAX', 'HND', 'DXB', 'CDG', 'SIN', 'LHR', 'SFO', 'SYD'];
-  const dep = mockHubs[Math.floor(Math.random() * mockHubs.length)];
-  let arr = mockHubs[Math.floor(Math.random() * mockHubs.length)];
-  while (arr === dep) {
-    arr = mockHubs[Math.floor(Math.random() * mockHubs.length)];
-  }
-  setupFlightParameters(code, dep, arr, 60, statusMessage);
-}
+// RENDER VISUAL TRAJECTORIES
+function setupFlightVisuals(startCoords, endCoords) {
+  if (flightPath) map.removeLayer(flightPath);
+  if (planeMarker) map.removeLayer(planeMarker);
 
-function setupFlightParameters(code, dep, arr, durationMins, message) {
-  totalDuration = durationMins * 60;
-  timeRemaining = totalDuration;
+  flightPath = L.polyline([startCoords, endCoords], {
+    color: '#38bdf8',
+    weight: 2,
+    dashArray: '6, 8'
+  }).addTo(map);
 
-  activeFlightState = {
-    flightNum: code,
-    dep: dep,
-    arr: arr,
-    seat: `${Math.floor(Math.random() * 30) + 1}${['A', 'B', 'C', 'D', 'E', 'F'][Math.floor(Math.random() * 6)]}`,
-    durationText: `${durationMins}m`
-  };
+  const initialHeading = calculateBearing(startCoords[0], startCoords[1], endCoords[0], endCoords[1]);
 
+  const planeIcon = L.divIcon({
+    html: `
+      <div class="radar-jet-wrapper" style="transform: rotate(${initialHeading}deg);">
+        <svg class="radar-jet-svg" viewBox="0 0 24 24">
+          <path fill="#38bdf8" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5Z"/>
+        </svg>
+      </div>
+    `,
+    className: 'custom-plane-div-node',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+
+  planeMarker = L.marker(startCoords, { icon: planeIcon }).addTo(map);
+  map.fitBounds(flightPath.getBounds(), { padding: [50, 50] });
+
+  groundTrackDisplay.innerText = "0.00%";
   updateChronometerDisplay();
-  statusDot.className = 'status-dot active';
-  statusDisplay.textContent = message;
-  searchBtn.disabled = false;
-  startBtn.disabled = false;
-
-  triggerBoardingPassModal();
 }
 
-// --- COCKPIT INTERFACES AND CHRONOMETERS ---
-function updateChronometerDisplay() {
-  const hrs = Math.floor(timeRemaining / 3600).toString().padStart(2, '0');
-  const mins = Math.floor((timeRemaining % 3600) / 60).toString().padStart(2, '0');
-  const secs = (timeRemaining % 60).toString().padStart(2, '0');
-  timeLeftDisplay.textContent = `${hrs}:${mins}:${secs}`;
-}
-
+// MASTER COUNTDOWN
 startBtn.addEventListener('click', () => {
-  if (timerInterval) return;
+  cabinNoise.volume = volumeSlider.value;
+  cabinNoise.currentTime = 0;
+  cabinNoise.play().catch(() => console.log('Audio engine waiting for UI trigger window focus.'));
 
   startBtn.classList.add('hidden');
   abortBtn.classList.remove('hidden');
   flightInput.disabled = true;
   searchBtn.disabled = true;
+  statusDisplay.innerText = "In Flight ✈️ Cockpit Isolation Active";
+
+  // Trigger Departure Announcement immediately upon takeoff
+  speakCaptainAnnouncement('departure');
+
+  // Reset turbulence protocols for the new flight
   turbulenceIncidents = 0;
-
-  if (turbulenceCounter) {
-    turbulenceCounter.classList.remove('hidden');
-    turbulenceCounter.textContent = `⚠️ TURBULENCE STATUS: STABLE`;
-    turbulenceCounter.style.color = '#10b981';
-  }
-
-  // Engage Visibility Anti-Distraction Trackers
-  document.addEventListener('visibilitychange', trackAttentionDeflection);
-  window.addEventListener('blur', registerAttentionSlip);
-
-  playCockpitChime();
-  speakCaptainsAnnouncement(`Ladies and gentlemen, this is your captain speaking. We have reached our cruising altitude, and the seatbelt sign has been turned off. You are cleared for deep focus execution.`);
+  turbulenceCounter.innerText = "⚠️ TURBULENCE STATUS: CLEAR";
+  turbulenceCounter.style.color = "#38bdf8";
+  turbulenceCounter.classList.remove('hidden');
 
   timerInterval = setInterval(() => {
-    if (timeRemaining > 0) {
-      timeRemaining--;
-      updateChronometerDisplay();
-      updateMapTelemetryVectors();
-    } else {
-      completeFlightMissionTrack();
+    timeRemaining--;
+    updateChronometerDisplay();
+    updateSpatialTelemetry();
+
+    // --- SMART IN-FLIGHT ARRIVAL ANNOUNCEMENT LOGIC ---
+    let arrivalThresholdSeconds = 10 * 60; // Default: 10 minutes remaining
+
+    if (totalDuration <= 15 * 60) {
+      // Short flight safety fallback: Trigger exactly at the halfway mark
+      arrivalThresholdSeconds = Math.floor(totalDuration / 2);
+    }
+
+    if (timeRemaining === arrivalThresholdSeconds) {
+      speakCaptainAnnouncement('descent');
+    }
+
+    // --- NEW: IN-FLIGHT SERVICE MILESTONE CHECKER ---
+    const secondsElapsed = totalDuration - timeRemaining;
+
+    // 1800 seconds = 30 minutes. Check if elapsed time hits a 30-minute mark (and ensure it's not 0)
+    if (secondsElapsed > 0 && secondsElapsed % 1800 === 0) {
+      playCockpitChime();
+
+      // Flash a brief announcement text on the cockpit hud panel status bar
+      const originalStatusText = statusDisplay.innerText;
+      statusDisplay.innerText = "☕ IN-FLIGHT SERVICE: Time for a 2 minute stretch!";
+      statusDisplay.style.color = "#a7f3d0"; // Subtle green notice highlight
+
+      // Revert status text color back to normal after 2 minutes
+      setTimeout(() => {
+        if (timerInterval) { // Only revert if the flight hasn't ended or aborted
+          statusDisplay.innerText = originalStatusText;
+          statusDisplay.style.color = "";
+        }
+      }, 120000);
+    }
+    // ------------------------------------------------
+
+    if (timeRemaining <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      speakCaptainAnnouncement('touchdown');
+      appendFlightToLogbook();
+      sessionTeardown("Wheels Down. Welcome to your destination! 🎉");
     }
   }, 1000);
 });
 
-function abortFlightMissionVectors() {
-  clearInterval(timerInterval);
-  timerInterval = null;
+// ABORT OPERATIONS
+abortBtn.addEventListener('click', () => {
 
-  // Revoke Protection Watchers
-  document.removeEventListener('visibilitychange', trackAttentionDeflection);
-  window.removeEventListener('blur', registerAttentionSlip);
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
 
-  appendRecordToHistoryManifest('ABORTED');
+  // FIXED: Aborted log executes first using memory cache safely before DOM layouts get cleared out
+  appendAbortedFlightToLogbook();
 
-  playCockpitChime();
-  alert(`Flight Aborted. Emergency vectors deployed. Focus session recorded as unfulfilled.`);
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
 
-  resetCockpitControlDeck();
-}
+  // Clean up Map elements safely
+  if (flightPath) map.removeLayer(flightPath);
+  if (planeMarker) map.removeLayer(planeMarker);
 
-abortBtn.addEventListener('click', abortFlightMissionVectors);
+  sessionTeardown("Flight Aborted.");
+});
 
-function completeFlightMissionTrack() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-
-  document.removeEventListener('visibilitychange', trackAttentionDeflection);
-  window.removeEventListener('blur', registerAttentionSlip);
-
-  appendRecordToHistoryManifest('COMPLETED');
-
-  playCockpitChime();
-  speakCaptainsAnnouncement("Cabin crew, prepare for gate arrival. Welcome to your destination. Your focus mission has been recorded successfully in the permanent logbook.");
-  alert(`Flight Completed successfully!`);
-
-  resetCockpitControlDeck();
-}
-
-function resetCockpitControlDeck() {
-  timeRemaining = 0;
-  totalDuration = 0;
-  updateChronometerDisplay();
-
+function sessionTeardown(messageString) {
+  cabinNoise.pause();
   startBtn.classList.remove('hidden');
-  startBtn.disabled = true;
   abortBtn.classList.add('hidden');
   flightInput.disabled = false;
-  flightInput.value = '';
   searchBtn.disabled = false;
+  startBtn.disabled = true;
+  boardingPassModal.classList.add('hidden');
+  statusDisplay.innerText = messageString;
+  statusDot.className = "status-dot";
 
-  statusDot.className = 'status-dot';
-  statusDisplay.textContent = 'Awaiting flight initialization parameters...';
-  if (turbulenceCounter) turbulenceCounter.classList.add('hidden');
+  // Hide turbulence UI when the session completes
+  turbulenceCounter.classList.add('hidden');
 
-  if (flightPath) flightPath.remove();
-  if (planeMarker) planeMarker.remove();
-}
-
-// --- ANTI-DISTRACTION SHIELD PROTECTION LOGICS ---
-function trackAttentionDeflection() {
-  if (document.hidden) {
-    registerAttentionSlip();
+  if (flightPath) {
+    map.removeLayer(flightPath);
+    flightPath = null;
   }
-}
-
-function registerAttentionSlip() {
-  if (!timerInterval) return;
-
-  turbulenceIncidents++;
-  if (turbulenceCounter) {
-    turbulenceCounter.textContent = `⚠️ AMBIENT TURBULENCE DETECTED: INCIDENTS (${turbulenceIncidents})`;
-    turbulenceCounter.style.color = '#f59e0b';
-    turbulenceCounter.style.animation = 'pulse 0.4s 2';
-  }
-}
-
-// --- RADAR NAVIGATION AND GEO-MAP VECTOR ENGINE ---
-function initializeRadarMap() {
-  if (map) {
-    setTimeout(() => map.invalidateSize(), 100);
-    return;
-  }
-
-  map = L.map('map', {
-    center: [20, 0],
-    zoom: 2,
-    zoomControl: false,
-    attributionControl: false
-  });
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 20
-  }).addTo(map);
-}
-
-function updateMapTelemetryVectors() {
-  if (!map || totalDuration <= 0) return;
-
-  const progress = (totalDuration - timeRemaining) / totalDuration;
-  document.getElementById('map-stat-track').textContent = `${(progress * 100).toFixed(2)}%`;
-
-  const startCoords = [19.076, 72.877]; // BOM Coordinates Template
-  const endCoords = [15.512, 73.832];   // GOX Coordinates Template
-
-  const currentLat = startCoords[0] + (endCoords[0] - startCoords[0]) * progress;
-  const currentLng = startCoords[1] + (endCoords[1] - startCoords[1]) * progress;
-
-  if (flightPath) flightPath.remove();
-  flightPath = L.polyline([startCoords, [currentLat, currentLng]], {
-    color: '#38bdf8',
-    weight: 2,
-    dashArray: '5, 5'
-  }).addTo(map);
-
   if (planeMarker) {
-    planeMarker.setLatLng([currentLat, currentLng]);
-  } else {
-    const customIcon = L.divIcon({
-      className: 'custom-plane-div-node',
-      html: `
-        <div class="radar-jet-wrapper">
-          <svg class="radar-jet-svg" viewBox="0 0 24 24" style="color:#38bdf8; width:32px; height:32px;">
-            <path fill="currentColor" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5Z"/>
-          </svg>
-        </div>
-      `,
-      iconSize: [32, 32],
-      iconAnchor: [16, 16]
-    });
-    planeMarker = L.marker([currentLat, currentLng], { icon: customIcon }).addTo(map);
+    map.removeLayer(planeMarker);
+    planeMarker = null;
   }
 
-  map.setView([currentLat, currentLng], map.getZoom(), { animate: true });
+  groundTrackDisplay.innerText = "0.00%";
 }
 
-// --- BOARDING PASS MODAL ENGINE ---
-function triggerBoardingPassModal() {
-  passFlightNum.textContent = activeFlightState.flightNum;
-  passDep.textContent = activeFlightState.dep;
-  passArr.textContent = activeFlightState.arr;
-  passDuration.textContent = activeFlightState.durationText;
-
-  const logs = [
-    "Locking coordinates focus configurations...",
-    "Telemetry arrays armed and ready.",
-    "Fuel allocations optimal. Safe flight.",
-    "Broadband noise shielding enabled."
-  ];
-  bpCatchyBroadcast.textContent = logs[Math.floor(Math.random() * logs.length)];
-
-  boardingPassModal.classList.remove('hidden');
+function updateChronometerDisplay() {
+  const hours = Math.floor(timeRemaining / 3600);
+  const minutes = Math.floor((timeRemaining % 3600) / 60);
+  const seconds = timeRemaining % 60;
+  timeLeftDisplay.innerText = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function updateSpatialTelemetry() {
+  if (!flightPath || !planeMarker) return;
+
+  const pct = (totalDuration - timeRemaining) / totalDuration;
+  groundTrackDisplay.innerText = `${(pct * 100).toFixed(2)}%`;
+
+  const coords = flightPath.getLatLngs();
+  const start = coords[0];
+  const end = coords[1];
+
+  const currentLat = start.lat + (end.lat - start.lat) * pct;
+  const currentLng = start.lng + (end.lng - start.lng) * pct;
+
+  const currentHeading = calculateBearing(currentLat, currentLng, end.lat, end.lng);
+
+  planeMarker.setLatLng([currentLat, currentLng]);
+
+  const jetContainer = planeMarker.getElement()?.querySelector('.radar-jet-wrapper');
+  if (jetContainer) {
+    jetContainer.style.transform = `rotate(${currentHeading}deg)`;
+  }
+}
+
+// VISUAL MODAL INTERACTIVE
 closePassBtn.addEventListener('click', () => {
   boardingPassModal.classList.add('hidden');
 });
 
-sharePassBtn.addEventListener('click', async () => {
-  const target = document.getElementById('boarding-pass');
-  sharePassBtn.disabled = true;
-  const originalText = sharePassBtn.innerHTML;
-  sharePassBtn.innerHTML = '⚙️ <span>Generating...</span>';
-
-  try {
-    const canvas = await html2canvas(target, {
-      backgroundColor: '#080a0f',
-      scale: 2,
-      useCORS: true,
-      ignoreElements: (el) => el.id === 'close-pass-btn' || el.id === 'share-pass-btn'
-    });
-
-    const link = document.createElement('a');
-    link.download = `V1-Pass-${activeFlightState.flightNum}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch (err) {
-    console.error("Canvas construction failed:", err);
-  } finally {
-    sharePassBtn.disabled = false;
-    sharePassBtn.innerHTML = originalText;
+boardingPassModal.addEventListener('click', (e) => {
+  if (e.target === boardingPassModal) {
+    boardingPassModal.classList.add('hidden');
   }
 });
 
-// --- PILOT REGISTRY LOGBOOK MANIFESTS ---
-function fetchLocalStorageRegistry() {
-  try {
-    return JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
-  } catch (e) {
-    return [];
+volumeSlider.addEventListener('input', (e) => {
+  const targetVal = e.target.value;
+  cabinNoise.volume = targetVal;
+  volumePct.innerText = `${Math.round(targetVal * 100)}%`;
+});
+
+// SNAPSHOT ENGINE
+// SIMPLIFIED SNAPSHOT ENGINE (Saves Boarding Pass with Printed Catchy Message)
+sharePassBtn.addEventListener('click', async () => {
+  const passElement = document.getElementById('boarding-pass');
+  const closeBtn = document.querySelector('.modal-close-trigger');
+
+  // Hide close cross button element so it doesn't render in your photo
+  if (closeBtn) closeBtn.style.display = 'none';
+
+  // Snapshot the visual ticket canvas node
+  const canvas = await html2canvas(passElement, {
+    backgroundColor: '#0f131a',
+    scale: 2, // High clarity crisp scaling multiplier
+    logging: false
+  });
+
+  // Put the close button back in place
+  if (closeBtn) closeBtn.style.display = 'block';
+
+  // Trigger the standard graphic download directly
+  const link = document.createElement('a');
+  link.download = `focus-flight-${activeFlightState.flightNum || 'TICKET'}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+initMap();
+
+// DEEP LINK QUERY PARSER
+function parseSharedFlightURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sharedFlight = urlParams.get('flight');
+
+  if (sharedFlight) {
+    flightInput.value = sharedFlight.toUpperCase();
+    searchBtn.click();
   }
 }
 
-function appendRecordToHistoryManifest(status) {
-  const logs = fetchLocalStorageRegistry();
-  const entry = {
-    id: Date.now(),
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-    flight: activeFlightState.flightNum,
-    route: `${activeFlightState.dep} ➔ ${activeFlightState.arr}`,
-    seat: activeFlightState.seat,
-    duration: activeFlightState.durationText,
-    rawDurationMins: Math.round(totalDuration / 60),
-    status: status
-  };
+setTimeout(parseSharedFlightURL, 500);
 
-  logs.unshift(entry);
-  localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
-}
+// --- VIEW ROUTING CONTROL SYSTEM ---
+function loadLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+  logbookRows.innerHTML = '';
 
-function renderLogbookManifest() {
-  const logs = fetchLocalStorageRegistry();
+  let totalMinutes = 0;
+  let longestFlightMinutes = 0;
+  let successfulFlightsCount = 0;
+
+  logs.forEach(log => {
+    const parsedMinutes = parseInt(log.duration) || 0;
+    totalMinutes += parsedMinutes;
+
+    if (parsedMinutes > longestFlightMinutes) {
+      longestFlightMinutes = parsedMinutes;
+    }
+
+    if (log.status === "COMPLETED") {
+      successfulFlightsCount++;
+    }
+  });
+
+  const totalFlightsLoggedCount = logs.length;
+  const computedOtpPercent = totalFlightsLoggedCount > 0
+    ? ((successfulFlightsCount / totalFlightsLoggedCount) * 100).toFixed(1)
+    : "100.0";
+
+  const totalHoursLoggedDisplay = (totalMinutes / 60).toFixed(1);
+  statTotalAirtime.innerText = `${totalHoursLoggedDisplay} HRS`;
+  statOtp.innerText = `${computedOtpPercent}%`;
+  statLongestSector.innerText = longestFlightMinutes > 0 ? `${longestFlightMinutes} MIN` : `-- MIN`;
 
   if (logs.length === 0) {
     logbookEmpty.classList.remove('hidden');
-    logbookRows.innerHTML = '';
-    statTotalAirtime.textContent = '0.0 HRS';
-    statOtp.textContent = '100.0%';
-    statLongestSector.textContent = '-- MIN';
     return;
   }
-
   logbookEmpty.classList.add('hidden');
 
-  let totalMins = 0;
-  let completedCount = 0;
-  let maxDuration = 0;
+  logs.forEach(log => {
+    const tr = document.createElement('tr');
+    const badgeMarkupStyleClass = log.status === "ABORTED" ? "badge-status-red" : "badge-status-green";
+    const displayedStatusTextValue = log.status || "COMPLETED";
 
-  logbookRows.innerHTML = logs.map(item => {
-    const isCompleted = item.status === 'COMPLETED';
-    if (isCompleted) {
-      totalMins += item.rawDurationMins || 0;
-      completedCount++;
-      if (item.rawDurationMins > maxDuration) maxDuration = item.rawDurationMins;
-    }
-
-    const statusBadgeStyle = isCompleted
-      ? 'background:rgba(34,197,94,0.1);color:#4ade80;border:1px solid rgba(34,197,94,0.15);'
-      : 'background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.15);';
-
-    return `
-      <tr>
-        <td class="log-date">${item.date}</td>
-        <td class="log-flight">${item.flight}</td>
-        <td class="log-route">${item.route}</td>
-        <td style="font-family:'JetBrains Mono';">${item.seat}</td>
-        <td class="log-duration">${item.duration}</td>
-        <td>
-          <span style="padding:4px 10px;border-radius:20px;font-size:0.7rem;font-weight:700;${statusBadgeStyle}">
-            ${item.status}
-          </span>
-        </td>
-      </tr>
+    tr.innerHTML = `
+      <td class="log-date">${log.date}</td>
+      <td class="log-flight">${log.flightNum}</td>
+      <td class="log-route">${log.dep} ➔ ${log.arr}</td>
+      <td><span style="opacity: 0.7;">Focus Elite /</span> <strong>${log.seat}</strong></td>
+      <td class="log-duration">${log.duration}</td>
+      <td><span class="${badgeMarkupStyleClass}" style="margin:0; padding:2px 8px; font-size:0.65rem;">${displayedStatusTextValue}</span></td>
     `;
-  }).join('');
-
-  // Dashboard Telemetry Recalculation
-  statTotalAirtime.textContent = `${(totalMins / 60).toFixed(1)} HRS`;
-  statOtp.textContent = `${((completedCount / logs.length) * 100).toFixed(1)}%`;
-  statLongestSector.textContent = maxDuration > 0 ? `${maxDuration} MIN` : '-- MIN';
+    logbookRows.appendChild(tr);
+  });
 }
 
-clearLogBtn.addEventListener('click', () => {
-  if (confirm("Are you sure you want to purge all blackbox telemetry manifest archives? This cannot be undone.")) {
-    localStorage.removeItem('v1_flight_logs');
-    renderLogbookManifest();
+function appendFlightToLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+
+  // FIXED: No longer scrapes dangerous raw text values from vulnerable DOM nodes
+  const currentFlightLog = {
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    flightNum: activeFlightState.flightNum,
+    dep: activeFlightState.dep,
+    arr: activeFlightState.arr,
+    seat: activeFlightState.seat,
+    duration: activeFlightState.durationText,
+    status: "COMPLETED"
+  };
+
+  logs.unshift(currentFlightLog);
+  localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
+  loadLogbook();
+}
+
+function appendAbortedFlightToLogbook() {
+  const logs = JSON.parse(localStorage.getItem('v1_flight_logs')) || [];
+
+  const minutesElapsedSoFar = totalDuration && timeRemaining
+    ? Math.round((totalDuration - timeRemaining) / 60)
+    : 0;
+
+  // FIXED: Relying strictly on our active state memory tracking wrapper
+  const currentFlightLog = {
+    date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    flightNum: activeFlightState.flightNum,
+    dep: activeFlightState.dep,
+    arr: activeFlightState.arr,
+    seat: activeFlightState.seat,
+    duration: `${minutesElapsedSoFar}m`,
+    status: "ABORTED"
+  };
+
+  logs.unshift(currentFlightLog);
+  localStorage.setItem('v1_flight_logs', JSON.stringify(logs));
+  loadLogbook();
+}
+
+function openRadarView() {
+  homeView.classList.add('hidden-view');
+  logbookView.classList.add('hidden-view');
+  radarView.classList.remove('hidden-view');
+
+  navHomeBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.remove('active-tab');
+
+  // FIX: Changed from .add() to .classList.add() to prevent script crashes
+  navRadarBtn.classList.add('active-tab');
+
+  // Forces Leaflet to re-draw and align tiles perfectly with the container bounds
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize();
+    }
+  }, 200);
+}
+
+window.addEventListener('resize', () => {
+  if (map && !radarView.classList.contains('hidden-view')) {
+    map.invalidateSize();
   }
 });
 
-// --- AUDIO FREQUENCY CHIME AND ANNOUNCEMENTS ---
+function openHomeView() {
+  radarView.classList.add('hidden-view');
+  logbookView.classList.add('hidden-view');
+  homeView.classList.remove('hidden-view');
+
+  navRadarBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.remove('active-tab');
+  navHomeBtn.classList.add('active-tab');
+}
+
+function openLogbookView() {
+  homeView.classList.add('hidden-view');
+  radarView.classList.add('hidden-view');
+  logbookView.classList.remove('hidden-view');
+
+  navHomeBtn.classList.remove('active-tab');
+  navRadarBtn.classList.remove('active-tab');
+  navLogbookBtn.classList.add('active-tab');
+
+  loadLogbook();
+}
+
+// Bind Navigation Triggers
+navRadarBtn.addEventListener('click', openRadarView);
+ctaRadarBtn.addEventListener('click', openRadarView);
+navHomeBtn.addEventListener('click', openHomeView);
+navLogbookBtn.addEventListener('click', openLogbookView);
+
+clearLogBtn.addEventListener('click', () => {
+  if (confirm('Are you clear to scrub the official flight manifest logbook logs? This cannot be undone.')) {
+    localStorage.removeItem('v1_flight_logs');
+    loadLogbook();
+  }
+});
+
+// --- ANTI-DISTRACTION DETECTOR (TURBULENCE SYSTEM) ---
+document.addEventListener('visibilitychange', () => {
+  // Only monitor distraction states if a flight sequence is actively tracking
+  if (timerInterval && document.visibilityState === 'hidden') {
+    turbulenceIncidents++;
+
+    if (turbulenceIncidents >= 3) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      // Force immediate emergency landing sequence
+      appendAbortedFlightToLogbook();
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      if (flightPath) map.removeLayer(flightPath);
+      if (planeMarker) map.removeLayer(planeMarker);
+
+      alert("🚨 EMERGENCY LANDING: Flight aborted due to severe focus loss (left tab 3 times).");
+      sessionTeardown("Emergency Landing. Focus breached.");
+    } else {
+      // Non-fatal warning penalty incrementation
+      turbulenceCounter.innerText = `⚠️ TURBULENCE INCIDENT: ${turbulenceIncidents}/3`;
+      turbulenceCounter.style.color = "#f87171";
+      statusDisplay.innerText = `⚠️ Severe Turbulence Encountered! (${turbulenceIncidents}/3)`;
+    }
+  }
+});
+
+loadLogbook();
+
+// --- COCKPIT AUDIO NOTIFICATION SYNTHESIZER ---
+// --- PILOT ANNOUNCEMENT AUDIO ENGINE (TTS) ---
+function speakCaptainAnnouncement(messageType, customData = {}) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+
+    // 1. Play a quick radio chime right before speaking to simulate the PA system turning on
+    playCockpitChime();
+
+    // 2. Map standard triggers to highly realistic, immersion-rich aviation scripts
+    let radioScript = "";
+    switch (messageType) {
+      case 'departure':
+        radioScript = "Uh, good day folks, from the flight deck. This is your Captain speaking. Flight controls are configured, and we are, uh, next in sequence for departure. Cabin crew, please ensure all doors are closed and prepare for takeoff. Sit back, relax, and enjoy the cruise.";
+        break;
+      case 'descent':
+        radioScript = "Flight deck here, once again, folks. Just giving you a quick update from the front. We have initiated our top of descent out of our cruise altitude. Weather looks excellent at our terminal. Cabin crew, prepare the cabin for arrival.";
+        break;
+      case 'touchdown':
+        radioScript = "Wheels down, folks. Welcome to your destination. We know you have a choice in focus engines, and we appreciate you flying V1 Focus today. Cabin crew, disarm slides and open doors.";
+        break;
+      default:
+        radioScript = messageType; // Fallback for custom strings
+    }
+
+    // 3. Configure the TTS voice mechanics to sound deep, steady, and slightly radio-filtered
+    setTimeout(() => {
+      const utterance = new SpeechSynthesisUtterance(radioScript);
+      const voices = window.speechSynthesis.getVoices();
+
+      // Look for professional or regional accents to give it character
+      const preferredVoice = voices.find(v =>
+        v.name.includes('Natural') ||
+        v.name.includes('Google US English') ||
+        v.name.includes('Daniel') ||
+        v.lang === 'en-US'
+      );
+
+      if (preferredVoice) utterance.voice = preferredVoice;
+
+      utterance.rate = 0.82;   // Significantly slower tempo to match standard airline announcements
+      utterance.pitch = 0.80;  // Deepened pitch to give that classic rumble authority over the speakers
+
+      window.speechSynthesis.speak(utterance);
+    }, 400); // 400ms delay gives the cockpit chime room to breathe before speaking
+
+  } catch (e) {
+    console.error("Captain's announcement system failure:", e);
+  }
+}
+
 function playCockpitChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -496,7 +725,7 @@ function playCockpitChime() {
 
     const ctx = new AudioContext();
 
-    // First high chime note (660Hz - E5)
+    // First high note (660Hz - E5)
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
@@ -506,46 +735,22 @@ function playCockpitChime() {
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
 
-    // Harmonic balanced chime note delayed (554Hz - C#5)
+    // Second harmony note played slightly delayed (554Hz - C#5)
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
     osc2.frequency.setValueAtTime(554, ctx.currentTime + 0.15);
     gain2.gain.setValueAtTime(0.08, ctx.currentTime + 0.15);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.9);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.0);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
 
-    osc1.start();
-    osc2.start();
+    // Fire the synthesizer engines
+    osc1.start(ctx.currentTime);
     osc1.stop(ctx.currentTime + 0.8);
-    osc2.stop(ctx.currentTime + 0.9);
+    osc2.start(ctx.currentTime + 0.15);
+    osc2.stop(ctx.currentTime + 1.0);
   } catch (e) {
-    console.error("Frequency generation failure:", e);
-  }
-}
-
-function speakCaptainsAnnouncement(phrase) {
-  try {
-    if (!('speechSynthesis' in window)) return;
-
-    // Stop ongoing speech vectors before scheduling announcements
-    window.speechSynthesis.cancel();
-
-    setTimeout(() => {
-      const utterance = new SpeechSynthesisUtterance(phrase);
-      utterance.volume = 0.8;
-      utterance.rate = 0.92; // Slight drawl mimicking standard pilot announcement profiles
-      utterance.pitch = 0.95;
-
-      const voices = window.speechSynthesis.getVoices();
-      const standardVoice = voices.find(v => v.lang.startsWith('en-US') && v.name.toLowerCase().includes('natural'))
-        || voices.find(v => v.lang.startsWith('en'));
-      if (standardVoice) utterance.voice = standardVoice;
-
-      window.speechSynthesis.speak(utterance);
-    }, 400);
-  } catch (e) {
-    console.error("Announcement audio system initialization mismatch:", e);
+    console.log("AudioContext blocked or uninitialized:", e);
   }
 }
