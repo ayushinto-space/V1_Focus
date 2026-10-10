@@ -67,9 +67,16 @@ const volumePct = document.getElementById('volume-pct');
 // INITIALIZE RADAR ENVIRONMENT
 function initMap() {
   map = L.map('map', { zoomControl: false }).setView([22.0, 78.0], 5);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+
+  const apiKey = import.meta.env.VITE_CARTO_API_KEY;
+  const tileUrl = apiKey 
+    ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${apiKey}`
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+  L.tileLayer(tileUrl, {
     attribution: '&copy; OpenStreetMap &copy; CARTO'
   }).addTo(map);
+
   L.control.zoom({ position: 'bottomleft' }).addTo(map);
 }
 
